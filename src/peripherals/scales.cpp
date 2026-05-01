@@ -52,6 +52,12 @@ void scalesInit(float scalesF1, float scalesF2) {
   }
 }
 
+void scalesUpdateFactors(float scalesF1, float scalesF2) {
+  if (hwScalesPresent) {
+    LoadCellSingleton::getInstance().set_scale(scalesF1, scalesF2);
+  }
+}
+
 void scalesTare(void) {
   if (hwScalesPresent) {
     auto& loadCells = LoadCellSingleton::getInstance();

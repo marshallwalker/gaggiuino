@@ -405,6 +405,7 @@ void tryEepromWrite(const eepromValues_t &eepromValues) {
   bool success = eepromWrite(eepromValues);
   watchdogReload(); // reload the watchdog timer on expensive operations
   if (success) {
+    scalesUpdateFactors(eepromValues.scalesF1, eepromValues.scalesF2);
     lcdShowPopup("Update successful!");
   } else {
     lcdShowPopup("Data out of range!");
