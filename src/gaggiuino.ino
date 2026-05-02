@@ -395,8 +395,13 @@ static void lcdRefresh(void) {
     #endif
 
     /*LCD temp output*/
-    currentState.waterTemperature = currentState.temperature;
-    lcdSetTemperature((uint16_t)currentState.waterTemperature);
+    float brewTempSetPoint = ACTIVE_PROFILE(runningCfg).setpoint + runningCfg.offsetTemp;
+    // float liveTempWithOffset = currentState.temperature - runningCfg.offsetTemp;
+    currentState.waterTemperature = (currentState.temperature > (float)ACTIVE_PROFILE(runningCfg).setpoint && currentState.brewSwitchState)
+      ? currentState.temperature / (float)brewTempSetPoint + (float)ACTIVE_PROFILE(runningCfg).setpoint
+      : currentState.temperature;
+
+    lcdSetTemperature(std::floor((uint16_t)currentState.waterTemperature));
 
     /*LCD weight & temp & water lvl output*/
     switch (lcdCurrentPageId) {
