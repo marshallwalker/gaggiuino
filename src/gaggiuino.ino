@@ -278,6 +278,20 @@ static void pageValuesRefresh() {
 static void modeSelect(void) {
   if (!systemState.startupInitFinished) return;
 
+  // Safety: skip heater control when temperature is invalid or steam was left
+  // forgotten ON. sysHealthCheck still runs at the end of the loop and forces
+  // all heaters off; this guard prevents heater control paths from briefly
+  // re-engaging the boiler before that runs.
+  if (currentState.temperature <= 0.0f
+      || isnan(currentState.temperature)
+      || currentState.temperature >= 170.0f
+      || currentState.isSteamForgottenON) {
+    setPumpOff();
+    setBoilerOff();
+    setSteamBoilerRelayOff();
+    return;
+  }
+
   switch (selectedOperationalMode) {
     //REPLACE ALL THE BELOW WITH OPMODE_auto_profiling
     case OPERATION_MODES::OPMODE_straight9Bar:
@@ -799,28 +813,27 @@ static inline void sysHealthCheck(float pressureThreshold) {
   //Reloading the watchdog timer, if this function fails to run MCU is rebooted
   watchdogReload();
 
-  /* This *while* is here to prevent situations where the system failed to get a temp reading and temp reads as 0 or -7(cause of the offset)
-  If we would use a non blocking function then the system would keep the SSR in HIGH mode which would most definitely cause boiler overheating */
-  while (currentState.temperature <= 0.0f || isnan(currentState.temperature) || currentState.temperature >= 170.0f) {
-    //Reloading the watchdog timer, if this function fails to run MCU is rebooted
-    watchdogReload();
-    /* In the event of the temp failing to read while the SSR is HIGH
-    we force set it to LOW while trying to get a temp reading - IMPORTANT safety feature */
+  /* If the thermocouple read is invalid (sensor fault, NaN, runaway), force
+  all heaters off this iteration. modeSelect() also short-circuits in this
+  state, so heaters cannot be re-enabled by other code paths until the
+  reading recovers. Single-pass (not blocking) so the UI keeps refreshing
+  and the user sees the popup. */
+  if (currentState.temperature <= 0.0f || isnan(currentState.temperature) || currentState.temperature >= 170.0f) {
     setPumpOff();
     setBoilerOff();
     setSteamBoilerRelayOff();
     if (millis() > thermoTimer) {
       LOG_ERROR("Cannot read temp from thermocouple (last read: %.1lf)!", static_cast<double>(currentState.temperature));
-      currentState.steamSwitchState ? lcdShowPopup("COOLDOWN") : lcdShowPopup("TEMP READ ERROR"); // writing a LCD message
-      currentState.temperature  = thermocoupleRead() - runningCfg.offsetTemp;  // Making sure we're getting a value
+      currentState.steamSwitchState ? lcdShowPopup("COOLDOWN") : lcdShowPopup("TEMP READ ERROR");
+      currentState.temperature = thermocoupleRead() - runningCfg.offsetTemp;
       thermoTimer = millis() + GET_KTYPE_READ_EVERY;
     }
   }
 
-  /*Shut down heaters if steam has been ON and unused fpr more than 10 minutes.*/
-  while (currentState.isSteamForgottenON) {
-    //Reloading the watchdog timer, if this function fails to run MCU is rebooted
-    watchdogReload();
+  /* Shut down heaters if steam has been ON and unused for more than 10 minutes.
+  Single-pass: modeSelect() skips heater control while the flag is set, and
+  the flag clears as soon as the user flips the steam switch off. */
+  if (currentState.isSteamForgottenON) {
     lcdShowPopup("TURN STEAM OFF NOW!");
     setPumpOff();
     setBoilerOff();
