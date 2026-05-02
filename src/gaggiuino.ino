@@ -419,6 +419,13 @@ void tryEepromWrite(const eepromValues_t &eepromValues) {
   bool success = eepromWrite(eepromValues);
   watchdogReload(); // reload the watchdog timer on expensive operations
   if (success) {
+    // Sync the in-memory config so the rest of the firmware sees new settings
+    // immediately. Active profile is preserved because it's a UI-driven
+    // selector, not a saved field per-write.
+    uint8_t activeProfile = runningCfg.activeProfile;
+    runningCfg = eepromValues;
+    runningCfg.activeProfile = activeProfile;
+    updateProfilerPhases();
     scalesUpdateFactors(eepromValues.scalesF1, eepromValues.scalesF2);
     lcdShowPopup("Update successful!");
   } else {
