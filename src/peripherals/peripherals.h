@@ -3,7 +3,6 @@
 #define PERIPHERALS_H
 
 #include "pindef.h"
-#include "peripherals.h"
 #include <Arduino.h>
 
 static inline void pinInit(void) {
