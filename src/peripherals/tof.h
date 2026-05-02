@@ -32,8 +32,17 @@ TOF::TOF() {}
 
 void TOF::init(SensorState& sensor) {
   #ifdef TOF_VL53L0X
-  while(!sensor.tofReady) {
+  // Bounded retry so a missing or dead VL53L0X can't hang boot indefinitely
+  // (this runs before iwdcInit so there is no watchdog recovery yet).
+  // Without the sensor, readLvl() falls through to a safe default value.
+  const unsigned long deadline = millis() + 2000ul;
+  while (!sensor.tofReady) {
     sensor.tofReady = tof_sensor.begin(0x29, false, &Wire, Adafruit_VL53L0X::VL53L0X_SENSE_HIGH_ACCURACY);
+    if (sensor.tofReady) break;
+    if (millis() > deadline) {
+      return;
+    }
+    delay(20);
   }
   tof_sensor.startRangeContinuous();
   mvAvg.begin();

@@ -30,7 +30,14 @@ uint32_t lcdEncodeLedSettings(bool state, bool disco, uint8_t r, uint8_t g, uint
 
 void lcdInit(void) {
   myNex.begin(115200);
+  // Bounded wait so an unplugged or dead Nextion can't hang boot indefinitely
+  // (this runs before iwdcInit so there is no watchdog recovery yet).
+  const unsigned long deadline = millis() + 5000ul;
   while (!lcdCheckSerialInit("\x88\xFF\xFF\xFF", 4)) {
+    if (millis() > deadline) {
+      LOG_ERROR("Nextion LCD init timed out, continuing without display");
+      return;
+    }
     LOG_VERBOSE("Connecting to Nextion LCD...");
     delay(5);
   }
