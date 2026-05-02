@@ -29,7 +29,6 @@ Functional fixes:
 - Hot-water mode no longer briefly pulses the boiler on before the temperature guard runs
 - Brew+steam combined "hot-water" shortcut is now restricted to the Home page so a stray switch bump mid-shot or mid-steam can't divert into hot-water mode
 - LCD temperature display shows the actual measured value rather than a dimensionally-incoherent derived formula
-- Home temperature gauge max-scale now switches correctly when entering steam mode (forces a Home page reload on `targetState` transitions so the gauge widget re-reads its scale instead of staying at the brew-mode max)
 - Post-shot pressure-release countdown popup renamed from "Dropping beats" to "Pressure release in: Ns"
 
 Safety / robustness:
