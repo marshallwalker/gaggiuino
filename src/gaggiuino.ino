@@ -857,11 +857,15 @@ static inline void sysHealthCheck(float pressureThreshold) {
     setPumpOff();
     setBoilerOff();
     setSteamBoilerRelayOff();
-    if (millis() > thermoTimer) {
+    // Popup is throttled by its own timer (not thermoTimer, which is already
+    // advanced by sensorsReadTemperature earlier in the same loop iteration).
+    // sensorsReadTemperature handles re-reading the thermocouple on its own
+    // cadence — no need to duplicate the read here.
+    static uint32_t tempFaultPopupTimer = 0;
+    if (millis() - tempFaultPopupTimer >= 1000u) {
+      tempFaultPopupTimer = millis();
       LOG_ERROR("Cannot read temp from thermocouple (last read: %.1lf)!", static_cast<double>(currentState.temperature));
       currentState.steamSwitchState ? lcdShowPopup("COOLDOWN") : lcdShowPopup("TEMP READ ERROR");
-      currentState.temperature = thermocoupleRead() - runningCfg.offsetTemp;
-      thermoTimer = millis() + GET_KTYPE_READ_EVERY;
     }
   }
 
