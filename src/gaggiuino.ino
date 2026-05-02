@@ -27,6 +27,28 @@ SystemState systemState;
 LED led;
 TOF tof;
 
+// Globals declared as extern in gaggiuino.h. Defined here so the header can be
+// safely included from multiple translation units in the future.
+unsigned long systemHealthTimer = 0;
+unsigned long pageRefreshTimer  = 0;
+unsigned long pressureTimer     = 0;
+unsigned long brewingTimer      = 0;
+unsigned long thermoTimer       = 0;
+unsigned long scalesTimer       = 0;
+unsigned long flowTimer         = 0;
+unsigned long steamTime         = 0;
+
+Measurements weightMeasurements(4);
+
+bool brewActive         = false;
+bool nonBrewModeActive  = false;
+
+int  preInfusionFinishedPhaseIdx = 3;
+bool homeScreenScalesEnabled     = false;
+
+float previousSmoothedPressure  = 0.f;
+float previousSmoothedPumpFlow  = 0.f;
+
 void setup(void) {
   LOG_INIT();
   LOG_INFO("Gaggiuino (fw: %s) booting", AUTO_VERSION);

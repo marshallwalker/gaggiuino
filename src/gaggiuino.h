@@ -65,29 +65,29 @@ const float calibrationPressure = 0.65f;
 #endif
 
 //Timers
-unsigned long systemHealthTimer;
-unsigned long pageRefreshTimer;
-unsigned long pressureTimer;
-unsigned long brewingTimer;
-unsigned long thermoTimer;
-unsigned long scalesTimer;
-unsigned long flowTimer;
-unsigned long steamTime;
+extern unsigned long systemHealthTimer;
+extern unsigned long pageRefreshTimer;
+extern unsigned long pressureTimer;
+extern unsigned long brewingTimer;
+extern unsigned long thermoTimer;
+extern unsigned long scalesTimer;
+extern unsigned long flowTimer;
+extern unsigned long steamTime;
 
 //scales vars
-Measurements weightMeasurements(4);
+extern Measurements weightMeasurements;
 
 // brew detection vars
-bool brewActive = false;
-bool nonBrewModeActive = false;
+extern bool brewActive;
+extern bool nonBrewModeActive;
 
 //PP&PI variables
-int preInfusionFinishedPhaseIdx = 3;
-bool homeScreenScalesEnabled = false;
+extern int preInfusionFinishedPhaseIdx;
+extern bool homeScreenScalesEnabled;
 
 // Other util vars
-float previousSmoothedPressure;
-float previousSmoothedPumpFlow;
+extern float previousSmoothedPressure;
+extern float previousSmoothedPumpFlow;
 
 static void sysHealthCheck(float pressureThreshold);
 
