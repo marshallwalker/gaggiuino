@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include "internal_watchdog.h"
 
 /**
 * This routine turns off the I2C bus and clears it
@@ -34,6 +35,7 @@ int I2C_ClearBus(int sdaPin, int sclPin) {
   int clockCount = 20; // > 2x9 clock
 
   while (SDA_LOW && (clockCount > 0)) { //  vii. If sdaPin is Low,
+    watchdogReload(); // outer iteration can take ~2s in stretch case; keep watchdog fed
     clockCount--;
     // Note: I2C bus is open collector so do NOT drive sclPin or sdaPin high.
     pinMode(sclPin, INPUT); // release sclPin pullup so that when made output it will be LOW
@@ -47,6 +49,7 @@ int I2C_ClearBus(int sdaPin, int sclPin) {
     SCL_LOW = (digitalRead(sclPin) == LOW); // Check if sclPin is Low.
     int counter = 20;
     while (SCL_LOW && (counter > 0)) {  //  loop waiting for sclPin to become High only wait 2sec.
+      watchdogReload(); // each iteration adds 100ms; cumulative can hit watchdog timeout
       counter--;
       delay(100);
       SCL_LOW = (digitalRead(sclPin) == LOW);
