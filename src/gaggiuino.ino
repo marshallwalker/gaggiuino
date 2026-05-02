@@ -879,15 +879,15 @@ static inline void sysHealthCheck(float pressureThreshold) {
     closeValve();
     systemHealthTimer = millis() + HEALTHCHECK_EVERY;
   }
-  // Throwing a pressure release countodown.
+  // Countdown popup before the post-shot pressure release fires.
   if (lcdCurrentPageId == NextionPage::BrewGraph) return;
   if (lcdCurrentPageId == NextionPage::BrewManual) return;
 
   if (currentState.smoothedPressure >= pressureThreshold && currentState.temperature < 100.f) {
     if (millis() >= systemHealthTimer - 3500ul && millis() <= systemHealthTimer - 500ul) {
-      char tmp[25];
+      char tmp[32];
       int countdown = (int)(systemHealthTimer-millis())/1000;
-      unsigned int check = snprintf(tmp, sizeof(tmp), "Dropping beats in: %i", countdown);
+      unsigned int check = snprintf(tmp, sizeof(tmp), "Pressure release in: %is", countdown);
       if (check > 0 && check <= sizeof(tmp)) {
         lcdShowPopup(tmp);
       }
