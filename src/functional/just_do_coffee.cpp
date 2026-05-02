@@ -77,17 +77,18 @@ void pulseHeaters(const uint32_t pulseLength, const int factor_1, const int fact
 //#############################################################################################
 void steamCtrl(const eepromValues_t &runningCfg, SensorState &currentState) {
   currentState.steamSwitchState ? lcdTargetState((int)HEATING::MODE_steam) : lcdTargetState((int)HEATING::MODE_brew); // setting the steam/hot water target temp
-  // steam temp control, needs to be aggressive to keep steam pressure acceptable
-  float steamTempSetPoint = runningCfg.steamSetPoint + runningCfg.offsetTemp;
-  float sensorTemperature = currentState.temperature + runningCfg.offsetTemp;
+  // currentState.temperature is already calibrated (offset applied at read time
+  // in sensorsReadTemperature), so compare directly against the user-facing
+  // setpoint without re-applying offsetTemp on both sides.
+  const uint16_t steamTempSetPoint = runningCfg.steamSetPoint;
 
-  if (currentState.smoothedPressure > steamThreshold_ || sensorTemperature > steamTempSetPoint) {
+  if (currentState.smoothedPressure > steamThreshold_ || currentState.temperature > steamTempSetPoint) {
     setBoilerOff();
     setSteamBoilerRelayOff();
     setSteamValveRelayOff();
     setPumpOff();
   } else {
-    if (sensorTemperature < steamTempSetPoint) {
+    if (currentState.temperature < steamTempSetPoint) {
       setBoilerOn();
     } else {
       setBoilerOff();
