@@ -286,8 +286,18 @@ static void pageValuesRefresh() {
   else lcdFetchPage(runningCfg, lcdLastCurrentPageId, runningCfg.activeProfile);
 
   homeScreenScalesEnabled = lcdGetHomeScreenScalesEnabled();
-  // MODE_SELECT should always be LAST
-  selectedOperationalMode = (OPERATION_MODES) lcdGetSelectedOperationalMode();
+  // MODE_SELECT should always be LAST.
+  // Validate the value Nextion returns before applying it. lcdGetSelectedOperationalMode
+  // can return out-of-range values (read failures return -1, and the Nextion-side
+  // `modeSelect` variable is unreliable on certain pages). If we accept garbage,
+  // modeSelect()'s switch falls into default: which does no heater control —
+  // boiler stays whatever it was set to last and steamCtrl/justDoCoffee never run.
+  // Keep the previous valid value when the read is bad.
+  int rawMode = lcdGetSelectedOperationalMode();
+  if (rawMode >= (int)OPERATION_MODES::OPMODE_straight9Bar
+   && rawMode <= (int)OPERATION_MODES::OPMODE_pressureBasedPreinfusionAndFlowProfile) {
+    selectedOperationalMode = (OPERATION_MODES) rawMode;
+  }
 
   updateProfilerPhases();
 
