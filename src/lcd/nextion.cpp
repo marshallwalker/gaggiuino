@@ -559,7 +559,18 @@ void lcdSetTankWaterLvl(uint16_t val) {
   myNex.writeNum("j0.val", val);
 }
 void lcdTargetState(int val) {
+  static int lastVal = -1;
   myNex.writeNum("targetState", val);
+  // The Home page temperature gauge widget reads its max-scale from
+  // `targetState` only at page-init time and doesn't re-render when the
+  // variable changes mid-page. When the target transitions (e.g. brew→steam),
+  // force a page reload so the gauge picks up the new max. Gated on lastVal
+  // != -1 so the first call at boot doesn't trigger a spurious reload, and on
+  // currentPageId == Home so we don't yank the user out of Settings/BrewGraph.
+  if (lastVal != -1 && val != lastVal && lcdCurrentPageId == NextionPage::Home) {
+    myNex.writeStr("page 0");
+  }
+  lastVal = val;
 }
 
 void lcdBrewTimerStart(void) {
