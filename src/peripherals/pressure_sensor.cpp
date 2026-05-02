@@ -30,7 +30,15 @@ float getPressure(void) {  //returns sensor pressure data
   // pressure gauge range 0-1.2MPa - 0-12 bar
   // 1 bar = 17.1 or 68.27 or 1777.8
 
-  getAdsError();
+  // getAdsError() does an I2C probe (ADS.isConnected) plus error reporting and
+  // is called from the hot path that runs every ~10ms. Throttle the
+  // preventive bus-health check to 500ms, but still run it immediately if
+  // the ADS library has flagged an error from a previous read.
+  static uint32_t lastErrorCheck = 0;
+  if (millis() - lastErrorCheck >= 500u || ADS.getError() != 0) {
+    lastErrorCheck = millis();
+    getAdsError();
+  }
 
   previousPressure = currentPressure;
 #if defined SINGLE_BOARD
