@@ -422,6 +422,7 @@ void tryEepromWrite(const eepromValues_t &eepromValues) {
     runningCfg.activeProfile = activeProfile;
     updateProfilerPhases();
     scalesUpdateFactors(eepromValues.scalesF1, eepromValues.scalesF2);
+    pumpInit(eepromValues.powerLineFrequency, eepromValues.pumpFlowAtZero);
     lcdShowPopup("Update successful!");
   } else {
     lcdShowPopup("Data out of range!");
