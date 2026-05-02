@@ -59,16 +59,34 @@ void justDoCoffee(const eepromValues_t &runningCfg, const SensorState &currentSt
 }
 
 void pulseHeaters(const uint32_t pulseLength, const int factor_1, const int factor_2, const bool brewActive) {
-  static uint32_t heaterWave;
-  static bool heaterState;
-  if (!heaterState && ((millis() - heaterWave) > (pulseLength * factor_1))) {
+  // Static state across calls: heaterWave is when the current ON/OFF segment
+  // started, heaterState toggles on each segment boundary.
+  static uint32_t heaterWave = 0;
+  static bool heaterState = false;
+  static uint32_t lastInvocation = 0;
+
+  uint32_t now = millis();
+  // Detect a long gap since the previous call (e.g. just returned from steam
+  // mode where pulseHeaters wasn't running). The main loop calls this every
+  // ~10ms during normal pulsing, so any gap >200ms means another mode took
+  // over. Reset the segment timer and force the boiler off so the next pulse
+  // starts a clean cycle from a known state instead of toggling immediately
+  // on stale heaterWave.
+  if (now - lastInvocation > 200) {
+    setBoilerOff();
+    heaterState = false;
+    heaterWave = now;
+  }
+  lastInvocation = now;
+
+  if (!heaterState && ((now - heaterWave) > (pulseLength * factor_1))) {
     brewActive ? setBoilerOff() : setBoilerOn();
-    heaterState=!heaterState;
-    heaterWave=millis();
-  } else if (heaterState && ((millis() - heaterWave) > (pulseLength / factor_2))) {
+    heaterState = !heaterState;
+    heaterWave = now;
+  } else if (heaterState && ((now - heaterWave) > (pulseLength / factor_2))) {
     brewActive ? setBoilerOn() : setBoilerOff();
-    heaterState=!heaterState;
-    heaterWave=millis();
+    heaterState = !heaterState;
+    heaterWave = now;
   }
 }
 
