@@ -147,8 +147,10 @@ bool eepromWrite(eepromValues_t eepromValuesNew) {
   || eepromValuesNew.brewDivider < 1
   || eepromValuesNew.pumpFlowAtZero < 0.210f
   || eepromValuesNew.pumpFlowAtZero > 0.310f
-  || eepromValuesNew.scalesF1 < -20000
-  || eepromValuesNew.scalesF2 > 20000)
+  || eepromValuesNew.scalesF1 < -20000 || eepromValuesNew.scalesF1 > 20000
+  || eepromValuesNew.scalesF2 < -20000 || eepromValuesNew.scalesF2 > 20000
+  || eepromValuesNew.scalesF1 == 0
+  || eepromValuesNew.scalesF2 == 0)
   {
     LOG_ERROR(errMsg);
     return false;
