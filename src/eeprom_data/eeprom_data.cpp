@@ -143,8 +143,10 @@ bool eepromWrite(eepromValues_t eepromValuesNew) {
   /* Check various global values */
   if (eepromValuesNew.steamSetPoint < 1
   || eepromValuesNew.steamSetPoint > 165
-  || eepromValuesNew.mainDivider < 1
-  || eepromValuesNew.brewDivider < 1
+  || eepromValuesNew.offsetTemp > 30
+  || eepromValuesNew.hpwr < 1 || eepromValuesNew.hpwr > 1500
+  || eepromValuesNew.mainDivider < 1 || eepromValuesNew.mainDivider > 50
+  || eepromValuesNew.brewDivider < 1 || eepromValuesNew.brewDivider > 50
   || eepromValuesNew.pumpFlowAtZero < 0.210f
   || eepromValuesNew.pumpFlowAtZero > 0.310f
   || eepromValuesNew.scalesF1 < -20000 || eepromValuesNew.scalesF1 > 20000
