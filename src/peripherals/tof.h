@@ -19,7 +19,7 @@ class TOF {
   private:
     // HardwareTimer* hw_timer;
     // static void TimerHandler10(void);
-    uint32_t tofReading;
+    uint32_t tofReading = 0;
 };
 
 TOF::TOF() {}

@@ -18,7 +18,7 @@ PredictiveWeight predictiveWeight;
 
 SensorState currentState;
 
-OPERATION_MODES selectedOperationalMode;
+OPERATION_MODES selectedOperationalMode = OPERATION_MODES::OPMODE_straight9Bar;
 
 eepromValues_t runningCfg;
 
@@ -927,7 +927,7 @@ static inline void sysHealthCheck(float pressureThreshold) {
       char tmp[32];
       int countdown = (int)(systemHealthTimer-millis())/1000;
       unsigned int check = snprintf(tmp, sizeof(tmp), "Pressure release in: %is", countdown);
-      if (check > 0 && check <= sizeof(tmp)) {
+      if (check > 0 && check < sizeof(tmp)) {
         lcdShowPopup(tmp);
       }
     }

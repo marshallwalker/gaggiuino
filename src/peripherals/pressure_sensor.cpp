@@ -63,7 +63,7 @@ void getAdsError(void) {
   if (result == 0) return;
   char tmp[25];
   unsigned int check = snprintf(tmp, sizeof(tmp), "ADS error code: %i", result);
-  if (check > 0 && check <= sizeof(tmp)) {
+  if (check > 0 && check < sizeof(tmp)) {
     lcdShowPopup(tmp);
   }
 }
@@ -79,7 +79,7 @@ void i2cResetState(void) {
     short result = I2C_ClearBus(PIN_WIRE_SDA, PIN_WIRE_SCL);
     char tmp[25];
     unsigned int check = snprintf(tmp, sizeof(tmp), "I2C error code: %i", result);
-    if (check > 0 && check <= sizeof(tmp)) {
+    if (check > 0 && check < sizeof(tmp)) {
       result == 0 ? adsInit() : lcdShowPopup(tmp);
     }
     delay(50);
