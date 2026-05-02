@@ -28,7 +28,6 @@ Functional fixes:
 - Steam temperature comparison cleaned up — was redundantly applying `offsetTemp` to both sides of the cutoff
 - Hot-water mode no longer briefly pulses the boiler on before the temperature guard runs
 - Brew+steam combined "hot-water" shortcut is now restricted to the Home page so a stray switch bump mid-shot or mid-steam can't divert into hot-water mode
-- LCD temperature display shows the actual measured value rather than a dimensionally-incoherent derived formula
 - Post-shot pressure-release countdown popup renamed from "Dropping beats" to "Pressure release in: Ns"
 
 Safety / robustness:
