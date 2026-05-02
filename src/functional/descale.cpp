@@ -13,7 +13,7 @@ int descalingCycle = 0;
 
 void deScale(eepromValues_t &runningCfg, const SensorState &currentState) {
   switch (descalingState) {
-    case DescalingState::IDLE: // Waiting for fuckfest to begin
+    case DescalingState::IDLE: // Waiting for descaling to begin
       if (currentState.brewSwitchState) {
         ACTIVE_PROFILE(runningCfg).setpoint = 9;
         openValve();
@@ -36,7 +36,7 @@ void deScale(eepromValues_t &runningCfg, const SensorState &currentState) {
         }
       }
       break;
-    case DescalingState::DESCALING_PHASE2: // Softening the f outta that scale
+    case DescalingState::DESCALING_PHASE2: // Softening the scale
       currentState.brewSwitchState ? descalingState : descalingState = DescalingState::FINISHED;
       setPumpOff();
       if (millis() - descalingTimer > DESCALE_PHASE2_EVERY) {
@@ -45,7 +45,7 @@ void deScale(eepromValues_t &runningCfg, const SensorState &currentState) {
         descalingState = DescalingState::DESCALING_PHASE3;
       }
       break;
-    case DescalingState::DESCALING_PHASE3: // Fucking up that scale big time
+    case DescalingState::DESCALING_PHASE3: // Breaking down the scale
       currentState.brewSwitchState ? descalingState : descalingState = DescalingState::FINISHED;
       setPumpToRawValue(30);
       if (millis() - descalingTimer > DESCALE_PHASE3_EVERY) {
@@ -59,7 +59,7 @@ void deScale(eepromValues_t &runningCfg, const SensorState &currentState) {
         }
       }
       break;
-    case DescalingState::FINISHED: // Scale successufuly fucked
+    case DescalingState::FINISHED: // Scale successfully removed
       setPumpOff();
       closeValve();
       setSteamValveRelayOff();
