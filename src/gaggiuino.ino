@@ -785,7 +785,7 @@ static bool sysReadinessCheck(void) {
     return false;
   }
   // If there's not enough water in the tank
-  if ((lcdCurrentPageId != NextionPage::BrewGraph || lcdCurrentPageId != NextionPage::BrewManual)
+  if ((lcdCurrentPageId != NextionPage::BrewGraph && lcdCurrentPageId != NextionPage::BrewManual)
   && currentState.waterLvl < MIN_WATER_LVL)
   {
     lcdShowPopup("Fill the water tank!");
