@@ -1,0 +1,26 @@
+# Default: auto-detect text files, normalize to LF in the repo and on disk.
+# Eliminates CRLF/LF churn caused by mixed contributor environments and
+# protects binary files from accidental newline rewrites.
+* text=auto eol=lf
+
+# Binary file types - never touch line endings or attempt text diffs
+*.HMI    binary
+*.tft    binary
+*.exe    binary
+*.png    binary
+*.jpg    binary
+*.jfif   binary
+*.ico    binary
+*.gif    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.eot    binary
+*.zip    binary
+*.gz     binary
+*.7z     binary
+*.pdf    binary
+
+# Binaries without an extension
+webserver/mklittlefs binary
