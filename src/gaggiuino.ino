@@ -419,8 +419,7 @@ static void lcdRefresh(void) {
         // temp decimal handling
         tempDecimal = (currentState.waterTemperature - (uint16_t)currentState.waterTemperature) * 10;
         lcdSetTemperatureDecimal(tempDecimal);
-        // If the weight output is a negative value lower than -0.8 you might want to tare again before extraction starts.
-        if (currentState.shotWeight) lcdSetWeight(currentState.shotWeight > -0.8f ? currentState.shotWeight : -0.9f);
+        if (currentState.shotWeight) lcdSetWeight(currentState.shotWeight);
         /*LCD flow output*/
         lcdSetFlow( currentState.smoothedPumpFlow * 10.f);
         break;

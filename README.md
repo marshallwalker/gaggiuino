@@ -29,6 +29,7 @@ Functional fixes:
 - Hot-water mode no longer briefly pulses the boiler on before the temperature guard runs
 - Brew+steam combined "hot-water" shortcut is now restricted to the Home page so a stray switch bump mid-shot or mid-steam can't divert into hot-water mode
 - Post-shot pressure-release countdown popup renamed from "Dropping beats" to "Pressure release in: Ns"
+- Weight display below 0.1 g clamps to 0.0 g — suppresses HX711 noise-floor flicker (`-0.1 / -0.0 / 0.0 / 0.1` jitter at rest). Raw `currentState.weight` is unchanged, so flow-rate, auto-tare, and stop-on-weight conditions still see real readings
 
 Safety / robustness:
 

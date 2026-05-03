@@ -530,6 +530,7 @@ void lcdSetTemperatureDecimal(uint16_t val) {
 }
 
 void lcdSetWeight(float val) {
+  if (val < 0.1f) val = 0.f;
   char tmp[10];
   int check = snprintf(tmp, sizeof(tmp), "%.1fg", static_cast<double>(val));
   if (check > 0 && static_cast<unsigned int>(check) < sizeof(tmp)) {
