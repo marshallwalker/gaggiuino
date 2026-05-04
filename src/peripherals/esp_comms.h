@@ -6,6 +6,7 @@
 #include "../eeprom_data/eeprom_data.h"
 
 void espCommsInit();
+bool espCommsIsConnected();
 
 void espCommsReadData();
 

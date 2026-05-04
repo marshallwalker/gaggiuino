@@ -33,6 +33,10 @@ void espCommsReadData() {
   McuCommsSingleton::getInstance().readDataAndTick();
 }
 
+bool espCommsIsConnected() {
+  return McuCommsSingleton::getInstance().isConnected();
+}
+
 volatile uint32_t sensorDataTimer = 0;
 void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
   uint32_t now = millis();

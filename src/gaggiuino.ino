@@ -116,9 +116,6 @@ void setup(void) {
   pageValuesRefresh();
   LOG_INFO("Setup sequence finished");
 
-  // Push profile names to ESP so the web UI can populate its profile picker.
-  espCommsSendProfileNames(runningCfg);
-
   // Change LED colour on setup exit.
   led.setColor(9u, 0u, 9u); // 64171
 
@@ -144,6 +141,18 @@ void loop(void) {
     : (float)ACTIVE_PROFILE(runningCfg).setpoint;
   currentState.activeProfile = runningCfg.activeProfile + 1; // 1-indexed for UI
   espCommsSendSensorData(currentState);
+
+  // Push profile names whenever the ESP connection comes up (initial boot
+  // and any reconnect after the ESP reboots). Rising-edge so we don't
+  // hammer the link on every loop iteration.
+  static bool espWasConnected = false;
+  bool espNowConnected = espCommsIsConnected();
+  if (!espWasConnected && espNowConnected) {
+    espCommsSendProfileNames(runningCfg);
+    LOG_INFO("ESP connection established; profile names pushed");
+  }
+  espWasConnected = espNowConnected;
+
   sysHealthCheck(SYS_PRESSURE_IDLE);
 }
 
