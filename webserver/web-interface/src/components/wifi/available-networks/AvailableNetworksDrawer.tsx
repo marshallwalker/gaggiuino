@@ -1,0 +1,60 @@
+import React, { useState } from 'react';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import {
+  Box, Button, Drawer, Stack, Typography, useTheme,
+} from '@mui/material';
+import { refrehNetworks } from '../../client/WifiClient';
+import Loader from '../../loader/Loader';
+import AvailableNetworks from './AvailableNetworks';
+
+interface AvailableNetworksDrawerProps {
+  open: boolean;
+  onOpenChanged: (open: boolean) => void;
+  onConnected?: () => void;
+}
+
+export default function AvailableNetworksDrawer({
+  open, onOpenChanged, onConnected = () => {},
+}: AvailableNetworksDrawerProps) {
+  const theme = useTheme();
+  const [networksRefreshing, setNetworksRefreshing] = useState(false);
+  const [wifiDrawerRefreshKey, setWifiDrawerRefreshKey] = useState(0);
+
+  async function refreshNetworksAction() {
+    setNetworksRefreshing(true);
+    try {
+      await refrehNetworks();
+      setWifiDrawerRefreshKey((oldKey) => oldKey + 1);
+    } finally {
+      setNetworksRefreshing(false);
+    }
+  }
+
+  const toggleDrawer = (isOpen: boolean) => (event: React.KeyboardEvent | React.MouseEvent) => {
+    if (event.type === 'keydown'
+      && ((event as React.KeyboardEvent).key === 'Tab'
+       || (event as React.KeyboardEvent).key === 'Shift')) {
+      return;
+    }
+    onOpenChanged(isOpen);
+  };
+
+  return open ? (
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={toggleDrawer(false)}
+    >
+      <Stack spacing={1} direction="row" alignItems="center" justifyContent="space-between">
+        <Typography variant="h5" sx={{ m: theme.spacing(2) }}>
+          Available networks
+        </Typography>
+        <Typography variant="h5" sx={{ m: theme.spacing(2) }}>
+          <Button onClick={refreshNetworksAction}><RefreshIcon /></Button>
+        </Typography>
+      </Stack>
+      {networksRefreshing && <Box display="flex" justifyContent="center"><Loader /></Box>}
+      {!networksRefreshing && <AvailableNetworks key={wifiDrawerRefreshKey} onConnected={onConnected} />}
+    </Drawer>
+  ) : <span />;
+}

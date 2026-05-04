@@ -2,6 +2,12 @@
   "name": "web-interface",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.23.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "dependencies": {
     "@anatoliygatt/dark-mode-toggle": "^1.0.1",
     "@emotion/react": "^11.11.0",
@@ -29,6 +35,10 @@
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "@types/node": "^25.6.0",
+    "@types/prop-types": "^15.7.15",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^5.60.0",
     "@typescript-eslint/parser": "^5.60.0",
     "@vitejs/plugin-react": "^4.0.1",
