@@ -24,7 +24,6 @@ function GaugeChart({
     cutout: '90%',
     borderWidth: 0,
     responsive: true,
-    updateMode: 'resize',
     maintainAspectRatio: {maintainAspectRatio},
     plugins: {
       center: {
