@@ -31,6 +31,10 @@ namespace websocket {
   std::deque<std::string> msgBuffer;
   SemaphoreHandle_t bufferLock = xSemaphoreCreateRecursiveMutex();
 
+  std::deque<LogEntry> logHistory;
+  static const size_t LOG_HISTORY_MAX = 100;
+  SemaphoreHandle_t logHistoryLock = xSemaphoreCreateRecursiveMutex();
+
   void wsSendWithBuffer(std::string message) {
     if (xSemaphoreTakeRecursive(bufferLock, portMAX_DELAY) == pdFALSE) return;
 
@@ -207,5 +211,19 @@ void wsSendLog(std::string log, std::string source) {
   serializeJson(root, serializedMsg);  // serialize to buffer
   websocket::unlockJson();
 
+  // Append to in-memory history so /api/logs and reconnecting clients can
+  // replay recent lines after a browser refresh.
+  if (xSemaphoreTakeRecursive(websocket::logHistoryLock, portMAX_DELAY) == pdTRUE) {
+    websocket::logHistory.push_back({source, log});
+    while (websocket::logHistory.size() > websocket::LOG_HISTORY_MAX) {
+      websocket::logHistory.pop_front();
+    }
+    xSemaphoreGiveRecursive(websocket::logHistoryLock);
+  }
+
   websocket::wsSendWithBuffer(serializedMsg);
+}
+
+const std::deque<LogEntry>& wsGetLogHistory() {
+  return websocket::logHistory;
 }
