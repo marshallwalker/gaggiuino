@@ -5,7 +5,6 @@
 #include "server/server_setup.h"
 #include "wifi/wifi_setup.h"
 #include "server/websocket/websocket.h"
-#include "scales/ble_scales.h"
 #include "./log/log.h"
 
 void setup() {
@@ -15,7 +14,6 @@ void setup() {
   stmCommsInit(Serial1);
   wifiSetup();
   webServerSetup();
-  bleScalesInit();
   vTaskDelete(NULL);     //Delete own task by passing NULL(task handle can also be used)
 }
 
@@ -35,5 +33,5 @@ void onShotSnapshotReceived(ShotSnapshot& shotData) {
 }
 
 void onScalesTareReceived() {
-  bleScalesTare();
+  // BLE scales support stripped from this build - no-op tare callback.
 }

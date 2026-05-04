@@ -1,5 +1,6 @@
 #include "wifi_setup.h"
 #include <WiFi.h>
+#include <vector>
 #include "../task_config.h"
 #include "../log/log.h"
 
