@@ -765,10 +765,17 @@ void onSelectProfileReceived(uint8_t index) {
   uint8_t zeroIdx = index - 1;
   if (runningCfg.activeProfile == zeroIdx) return;
 
+  // Mirror the Nextion-side quick-switch flow so the LCD ends up in the same
+  // state as if the user had tapped a qPf button locally.
+  eepromValues_t storedSettings = eepromGetCurrentValues();
   runningCfg.activeProfile = zeroIdx;
+  ACTIVE_PROFILE(runningCfg) = storedSettings.profiles[zeroIdx];
+  updateProfilerPhases();
+  lcdUploadProfile(runningCfg);
+
   eepromWrite(runningCfg);
-  pageValuesRefresh();
   espCommsSendProfileNames(runningCfg);
+  lcdShowPopup("Profile switched");
 }
 
 static void profiling(void) {
