@@ -116,6 +116,9 @@ void setup(void) {
   pageValuesRefresh();
   LOG_INFO("Setup sequence finished");
 
+  // Push profile names to ESP so the web UI can populate its profile picker.
+  espCommsSendProfileNames(runningCfg);
+
   // Change LED colour on setup exit.
   led.setColor(9u, 0u, 9u); // 64171
 
@@ -139,6 +142,7 @@ void loop(void) {
   currentState.currentTargetTemp = currentState.steamSwitchState
     ? (float)runningCfg.steamSetPoint
     : (float)ACTIVE_PROFILE(runningCfg).setpoint;
+  currentState.activeProfile = runningCfg.activeProfile + 1; // 1-indexed for UI
   espCommsSendSensorData(currentState);
   sysHealthCheck(SYS_PRESSURE_IDLE);
 }
@@ -744,6 +748,18 @@ void addPhase(PHASE_TYPE type, Transition target, float restriction, int timeMs,
 }
 
 void onProfileReceived(Profile& newProfile) {
+}
+
+void onSelectProfileReceived(uint8_t index) {
+  // index is 1-indexed from the UI; firmware uses 0-indexed internally.
+  if (index < 1 || index > MAX_PROFILES) return;
+  uint8_t zeroIdx = index - 1;
+  if (runningCfg.activeProfile == zeroIdx) return;
+
+  runningCfg.activeProfile = zeroIdx;
+  eepromWrite(runningCfg);
+  pageValuesRefresh();
+  espCommsSendProfileNames(runningCfg);
 }
 
 static void profiling(void) {

@@ -1,6 +1,7 @@
 /* 09:32 15/03/2023 - change triggering comment */
 #include "esp_comms.h"
 #include "pindef.h"
+#include <string.h>
 
 namespace {
   class McuCommsSingleton {
@@ -25,6 +26,7 @@ void espCommsInit() {
   McuCommsSingleton::getInstance().setProfileReceivedCallback(onProfileReceived);
   McuCommsSingleton::getInstance().setRemoteScalesWeightReceivedCallback(onRemoteScalesWeightReceived);
   McuCommsSingleton::getInstance().setRemoteScalesDisconnectedCallback(onRemoteScalesDisconnected);
+  McuCommsSingleton::getInstance().setSelectProfileCommandCallback(onSelectProfileReceived);
 }
 
 void espCommsReadData() {
@@ -45,7 +47,8 @@ void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
       .pumpFlow = state.smoothedPumpFlow,
       .weightFlow = state.smoothedWeightFlow,
       .weight = state.weight,
-      .waterLvl = state.waterLvl
+      .waterLvl = state.waterLvl,
+      .activeProfile = state.activeProfile
     };
     McuCommsSingleton::getInstance().sendSensorStateSnapshot(sensorSnapshot);
     sensorDataTimer = now;
@@ -63,4 +66,13 @@ void espCommsSendShotData(ShotSnapshot& shotData, uint32_t frequency) {
 
 void espCommsSendTareScalesCommand() {
   McuCommsSingleton::getInstance().sendRemoteScalesTare();
+}
+
+void espCommsSendProfileNames(const eepromValues_t& cfg) {
+  ProfileNamesSnapshot snapshot = {};
+  for (uint8_t i = 0; i < PROFILE_NAMES_COUNT; i++) {
+    strncpy(snapshot.names[i], cfg.profiles[i].name, PROFILE_NAMES_LENGTH - 1);
+    snapshot.names[i][PROFILE_NAMES_LENGTH - 1] = '\0';
+  }
+  McuCommsSingleton::getInstance().sendProfileNamesSnapshot(snapshot);
 }

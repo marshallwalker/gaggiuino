@@ -4,9 +4,13 @@
 namespace {
   McuComms mcuComms;
   SemaphoreHandle_t mcucLock = xSemaphoreCreateRecursiveMutex();
+  ProfileNamesSnapshot lastProfileNames = {};
+  bool hasProfileNames = false;
 }
 
 void stmCommsTask(void* params);
+void onProfileNamesSnapshotInternal(ProfileNamesSnapshot& snapshot);
+
 void stmCommsInit(HardwareSerial& serial) {
   serial.setRxBufferSize(256);
   serial.setTxBufferSize(256);
@@ -19,6 +23,7 @@ void stmCommsInit(HardwareSerial& serial) {
   mcuComms.setShotSnapshotCallback(onShotSnapshotReceived);
   mcuComms.setSensorStateSnapshotCallback(onSensorStateSnapshotReceived);
   mcuComms.setRemoteScalesTareCommandCallback(onScalesTareReceived);
+  mcuComms.setProfileNamesSnapshotCallback(onProfileNamesSnapshotInternal);
 
   xTaskCreateUniversal(stmCommsTask, "stmComms", configMINIMAL_STACK_SIZE + 2400, NULL, PRIORITY_STM_COMMS, NULL, CORE_STM_COMMS);
 }
@@ -46,4 +51,27 @@ void stmCommsSendScaleDisconnected() {
   if (xSemaphoreTakeRecursive(mcucLock, portMAX_DELAY) == pdFALSE) return;
   mcuComms.sendRemoteScalesDisconnected();
   xSemaphoreGiveRecursive(mcucLock);
+}
+
+void stmCommsSendSelectProfile(uint8_t index) {
+  if (xSemaphoreTakeRecursive(mcucLock, portMAX_DELAY) == pdFALSE) return;
+  mcuComms.sendSelectProfile(index);
+  xSemaphoreGiveRecursive(mcucLock);
+}
+
+bool stmCommsHasProfileNames() {
+  return hasProfileNames;
+}
+
+const ProfileNamesSnapshot& stmCommsGetCachedProfileNames() {
+  return lastProfileNames;
+}
+
+// Cache the snapshot before forwarding to the externally-defined handler so the
+// HTTP API and new WebSocket clients can pull the latest names without a
+// round-trip to the STM.
+void onProfileNamesSnapshotInternal(ProfileNamesSnapshot& snapshot) {
+  lastProfileNames = snapshot;
+  hasProfileNames = true;
+  onProfileNamesSnapshotReceived(snapshot);
 }

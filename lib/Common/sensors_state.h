@@ -29,6 +29,7 @@ struct SensorState {
   long pumpClicks;
   uint16_t waterLvl;
   bool tofReady;
+  uint8_t activeProfile;          // 1-indexed for UI consistency
 };
 
 struct SensorStateSnapshot {
@@ -42,6 +43,13 @@ struct SensorStateSnapshot {
   float weightFlow;
   float weight;
   uint16_t waterLvl;
+  uint8_t activeProfile;          // 1-indexed for UI consistency
+};
+
+#define PROFILE_NAMES_COUNT 5
+#define PROFILE_NAMES_LENGTH 25
+struct ProfileNamesSnapshot {
+  char names[PROFILE_NAMES_COUNT][PROFILE_NAMES_LENGTH];
 };
 
 #endif

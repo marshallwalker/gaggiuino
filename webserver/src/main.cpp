@@ -35,3 +35,7 @@ void onShotSnapshotReceived(ShotSnapshot& shotData) {
 void onScalesTareReceived() {
   // BLE scales support stripped from this build - no-op tare callback.
 }
+
+void onProfileNamesSnapshotReceived(ProfileNamesSnapshot& snapshot) {
+  wsSendProfileNamesSnapshotToClients(snapshot);
+}

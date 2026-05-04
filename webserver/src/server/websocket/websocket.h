@@ -9,6 +9,7 @@ void setupWebSocket(AsyncWebServer& server);
 void wsCleanup();
 void wsSendSensorStateSnapshotToClients(SensorStateSnapshot& snapshot);
 void wsSendShotSnapshotToClients(ShotSnapshot& snapshot);
+void wsSendProfileNamesSnapshotToClients(const ProfileNamesSnapshot& snapshot);
 void wsSendLog(std::string log, std::string source = "webserver");
 
 #endif

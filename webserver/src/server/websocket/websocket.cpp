@@ -1,5 +1,6 @@
 #include "websocket.h"
 #include "../../log/log.h"
+#include "../../stm_comms/stm_comms.h"
 #include <deque>
 #include <WiFi.h>
 #include "ESPAsyncWebServer.h"
@@ -8,7 +9,10 @@
 
 const std::string WS_MSG_SENSOR_DATA = "sensor_data_update";
 const std::string WS_MSG_SHOT_DATA = "shot_data_update";
+const std::string WS_MSG_PROFILE_NAMES = "profile_names_update";
 const std::string WS_MSG_LOG = "log_record";
+
+void wsSendProfileNamesToClient(AsyncWebSocketClient* client, const ProfileNamesSnapshot& snapshot);
 
 namespace websocket {
   AsyncWebSocket wsServer("/ws");
@@ -66,6 +70,9 @@ void onEvent(
   switch (type) {
   case WS_EVT_CONNECT:
     LOG_INFO("WebSocket client #%u connected from %s", client->id(), client->remoteIP().toString().c_str());
+    if (stmCommsHasProfileNames()) {
+      wsSendProfileNamesToClient(client, stmCommsGetCachedProfileNames());
+    }
     break;
   case WS_EVT_DISCONNECT:
     LOG_INFO("WebSocket client #%u disconnected", client->id());
@@ -122,6 +129,7 @@ void wsSendSensorStateSnapshotToClients(SensorStateSnapshot& snapshot) {
   data["pumpFlow"] = snapshot.pumpFlow;
   data["weightFlow"] = snapshot.weightFlow;
   data["weight"] = snapshot.weight;
+  data["activeProfile"] = snapshot.activeProfile;
 
   std::string serializedMsg; // create temp buffer
   serializeJson(root, serializedMsg);  // serialize to buffer
@@ -153,6 +161,36 @@ void wsSendShotSnapshotToClients(ShotSnapshot& snapshot) {
   websocket::unlockJson();
 
   websocket::wsServer.textAll(serializedMsg.c_str(), serializedMsg.length());
+}
+
+// Builds the JSON payload for profile names. Caller owns the lock.
+static std::string buildProfileNamesJson(const ProfileNamesSnapshot& snapshot) {
+  JsonObject root = websocket::jsonDoc.to<JsonObject>();
+  root["action"] = WS_MSG_PROFILE_NAMES;
+  JsonArray profiles = root.createNestedArray("data");
+  for (uint8_t i = 0; i < PROFILE_NAMES_COUNT; i++) {
+    JsonObject profile = profiles.createNestedObject();
+    profile["index"] = i + 1;
+    profile["name"] = snapshot.names[i];
+  }
+  std::string serializedMsg;
+  serializeJson(root, serializedMsg);
+  return serializedMsg;
+}
+
+void wsSendProfileNamesSnapshotToClients(const ProfileNamesSnapshot& snapshot) {
+  if (!websocket::lockJson()) return;
+  std::string serializedMsg = buildProfileNamesJson(snapshot);
+  websocket::unlockJson();
+  websocket::wsServer.textAll(serializedMsg.c_str(), serializedMsg.length());
+}
+
+void wsSendProfileNamesToClient(AsyncWebSocketClient* client, const ProfileNamesSnapshot& snapshot) {
+  if (!client) return;
+  if (!websocket::lockJson()) return;
+  std::string serializedMsg = buildProfileNamesJson(snapshot);
+  websocket::unlockJson();
+  client->text(serializedMsg.c_str(), serializedMsg.length());
 }
 
 void wsSendLog(std::string log, std::string source) {

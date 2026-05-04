@@ -148,6 +148,18 @@ void McuComms::remoteScalesDisconnected() const {
   }
 }
 
+void McuComms::profileNamesSnapshotReceived(ProfileNamesSnapshot& snapshot) const {
+  if (profileNamesSnapshotCallback) {
+    profileNamesSnapshotCallback(snapshot);
+  }
+}
+
+void McuComms::selectProfileCommandReceived(uint8_t index) const {
+  if (selectProfileCommandCallback) {
+    selectProfileCommandCallback(index);
+  }
+}
+
 void McuComms::responseReceived(McuCommsResponse& response) const {
   if (responseReceivedCallback) {
     responseReceivedCallback(response);
@@ -242,6 +254,14 @@ void McuComms::setRemoteScalesDisconnectedCallback(RemoteScalesDisconnectedCallb
   remoteScalesDisconnectedCallback = callback;
 }
 
+void McuComms::setProfileNamesSnapshotCallback(ProfileNamesSnapshotReceivedCallback callback) {
+  profileNamesSnapshotCallback = callback;
+}
+
+void McuComms::setSelectProfileCommandCallback(SelectProfileCommandCallback callback) {
+  selectProfileCommandCallback = callback;
+}
+
 void McuComms::setResponseReceivedCallback(ResponseReceivedCallback callback) {
   responseReceivedCallback = callback;
 }
@@ -287,6 +307,19 @@ void McuComms::sendRemoteScalesDisconnected() {
   if (!isConnected()) return;
   uint16_t messageSize = transfer.txObj(static_cast<uint8_t>(McuCommsMessageType::MCUC_DATA_REMOTE_SCALES_DISCONNECTED));
   transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_DATA_REMOTE_SCALES_DISCONNECTED));
+}
+
+void McuComms::sendProfileNamesSnapshot(const ProfileNamesSnapshot& snapshot) {
+  if (!isConnected()) return;
+  std::vector<uint8_t> buffer(sizeof(ProfileNamesSnapshot));
+  memcpy(buffer.data(), &snapshot, sizeof(ProfileNamesSnapshot));
+  sendMultiPacket(buffer, sizeof(ProfileNamesSnapshot), static_cast<uint8_t>(McuCommsMessageType::MCUC_DATA_PROFILE_NAMES));
+}
+
+void McuComms::sendSelectProfile(uint8_t index) {
+  if (!isConnected()) return;
+  uint16_t messageSize = transfer.txObj(index);
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_SELECT_PROFILE));
 }
 
 void McuComms::readDataAndTick() {
@@ -336,6 +369,19 @@ void McuComms::readDataAndTick() {
     } case McuCommsMessageType::MCUC_DATA_REMOTE_SCALES_DISCONNECTED: {
       log("Received scales disconnected message");
       remoteScalesDisconnected();
+      break;
+    } case McuCommsMessageType::MCUC_DATA_PROFILE_NAMES: {
+      log("Received a profile names snapshot packet\n");
+      std::vector<uint8_t> data = receiveMultiPacket();
+      ProfileNamesSnapshot snapshot;
+      memcpy(&snapshot, data.data(), sizeof(ProfileNamesSnapshot));
+      profileNamesSnapshotReceived(snapshot);
+      break;
+    } case McuCommsMessageType::MCUC_CMD_SELECT_PROFILE: {
+      log("Received a select profile command\n");
+      uint8_t index = 0;
+      transfer.rxObj(index);
+      selectProfileCommandReceived(index);
       break;
     }
     default:

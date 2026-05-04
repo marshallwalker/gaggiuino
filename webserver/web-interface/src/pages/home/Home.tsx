@@ -1,17 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box, Container, useTheme, Fab, TextField, Grid, Button, Skeleton, Stack,
+  Box, Container, useTheme, Fab, TextField, Grid, Button,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ScaleIcon from '@mui/icons-material/Scale';
 import GaugeChart from '../../components/chart/GaugeChart';
 import GaugeLiquid from '../../components/chart/GaugeLiquid';
+import ProfileList from '../../components/profiles/ProfileList';
 import useSensorData from '../../hooks/useSensorData';
+import useProfileList from '../../hooks/useProfileList';
+import { setActiveProfile } from '../../components/client/ProfilesClient';
 
 export default function Home() {
   const sensorData = useSensorData();
+  const profiles = useProfileList();
   const theme = useTheme();
+
+  const handleSelectProfile = (index: number) => {
+    setActiveProfile(index).catch(() => {
+      // Network error or 422 - swallow for now. The sensor stream will
+      // continue to reflect the actual active profile so the UI stays
+      // consistent regardless.
+    });
+  };
 
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [boxSize, setBoxSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -55,13 +67,12 @@ export default function Home() {
           </Box>
         </Grid>
         <Grid item xs={6} sx={{ gap: '8px' }}>
-          {/* <ProfilesTable /> */}
-          <Box sx={{ border: `0.1px solid ${theme.palette.divider}`, justifyContent: 'center', alignItems: 'center', display: 'flex', position: 'relative', borderRadius: '16px', width: '100%', height: '100%', padding: '0px', backgroundColor: '#292929' }}>
-            <Stack spacing={1} width="98%">
-              <Skeleton variant="rounded" sx={{ fontSize: '1rem', borderRadius: '16px' }} width="100%" height={190} />
-              <Skeleton variant="rounded" width="50%" height={150} sx={{ fontSize: '1rem', borderRadius: '16px' }} />
-              <Skeleton variant="rounded" width="50%" height={150} sx={{ fontSize: '1rem', borderRadius: '16px' }} />
-            </Stack>
+          <Box sx={{ border: `0.1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'flex-start', position: 'relative', borderRadius: '16px', width: '100%', height: '100%', padding: '0px', backgroundColor: '#292929' }}>
+            <ProfileList
+              profiles={profiles}
+              activeIndex={sensorData.activeProfile}
+              onSelect={handleSelectProfile}
+            />
           </Box>
         </Grid>
         <Grid item xs={4}>

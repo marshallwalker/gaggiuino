@@ -3,6 +3,7 @@
 #define ESP_COMMS_H
 
 #include "mcu_comms.h"
+#include "../eeprom_data/eeprom_data.h"
 
 void espCommsInit();
 
@@ -11,9 +12,11 @@ void espCommsReadData();
 void espCommsSendSensorData(const SensorState& state, uint32_t frequency = 1000);
 void espCommsSendShotData(ShotSnapshot& shotData, uint32_t frequency = 100);
 void espCommsSendTareScalesCommand();
+void espCommsSendProfileNames(const eepromValues_t& cfg);
 
 void onProfileReceived(Profile& profile);
 void onRemoteScalesWeightReceived(float weight);
 void onRemoteScalesDisconnected();
+void onSelectProfileReceived(uint8_t index);
 
 #endif

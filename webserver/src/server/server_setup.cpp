@@ -3,6 +3,7 @@
 #include "AsyncTCP.h"
 
 #include "api/api_wifi.h"
+#include "api/api_profiles.h"
 #include "api/api_static_files.h"
 #include "api/api_not_found_handler.h"
 #include "websocket/websocket.h"
@@ -18,6 +19,7 @@ void webServerTask(void* params);
 
 void webServerSetup() {
   setupWifiApi(webserver::server);
+  setupProfilesApi(webserver::server);
   setupWebSocket(webserver::server);
   setupStaticFiles(webserver::server);
   webserver::server.onNotFound(&handleUrlNotFound);
