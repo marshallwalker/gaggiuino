@@ -74,16 +74,45 @@ void lcdWakeUp(void) {
   myNex.writeNum("sleep", 0);
 }
 
-void lcdClickProfile(uint8_t index /* 1-indexed */) {
-  // Programmatically simulate a release click on home.qPf<index>. The
-  // Nextion's own button release handler manages the visual transition
-  // (highlight active, deselect siblings) and sends trigger7 back to the
-  // STM, which routes through lcdQuickProfileSwitch. This unifies the
-  // visual logic between Nextion-initiated taps and web-UI-initiated
-  // selects so we don't have to mirror the deselect-sibling behaviour
-  // by hand from firmware.
-  String cmd = String("click home.qPf") + index + ",0";
-  myNex.writeStr(cmd.c_str());
+void lcdSwapProfileHighlight(uint8_t oldIndex /* 1-indexed */, uint8_t newIndex /* 1-indexed */) {
+  // Manually swap the qPf button highlights to mirror what the Nextion's
+  // own button release handler does on a local tap. The `click` command
+  // would do this via the handler but doesn't reliably fire cross-page
+  // (the qPf buttons live on the home page; if the user is currently on
+  // Settings the click is silently dropped).
+  //
+  // Strategy: the active colors are stored in each button's .bco2/.pco2
+  // (set in the HMI editor). The default (inactive) colors are whatever
+  // .bco/.pco was at design time - those values aren't directly queryable
+  // as "defaults" once .bco has been overwritten, so we read them from a
+  // currently-inactive sibling button (any qPf that isn't oldIndex or
+  // newIndex). With 5 buttons and at most 2 in-flight, there's always
+  // an inactive sibling to read from.
+  if (oldIndex == newIndex) return;
+
+  uint8_t srcIndex = 1;
+  while (srcIndex == oldIndex || srcIndex == newIndex) srcIndex++;
+  if (srcIndex > MAX_PROFILES) return;  // safety guard
+
+  String srcBtn = String("home.qPf") + srcIndex;
+  uint32_t defaultBco = (uint32_t)myNex.readNumber((srcBtn + ".bco").c_str());
+  uint32_t defaultPco = (uint32_t)myNex.readNumber((srcBtn + ".pco").c_str());
+
+  // Reset the previously-active button to defaults
+  if (oldIndex >= 1 && oldIndex <= MAX_PROFILES) {
+    String oldBtn = String("home.qPf") + oldIndex;
+    myNex.writeNum((oldBtn + ".bco").c_str(), defaultBco);
+    myNex.writeNum((oldBtn + ".pco").c_str(), defaultPco);
+  }
+
+  // Activate the new button (read its .bco2/.pco2 - the design-time "active" alt)
+  if (newIndex >= 1 && newIndex <= MAX_PROFILES) {
+    String newBtn = String("home.qPf") + newIndex;
+    uint32_t activeBco = (uint32_t)myNex.readNumber((newBtn + ".bco2").c_str());
+    uint32_t activePco = (uint32_t)myNex.readNumber((newBtn + ".pco2").c_str());
+    myNex.writeNum((newBtn + ".bco").c_str(), activeBco);
+    myNex.writeNum((newBtn + ".pco").c_str(), activePco);
+  }
 }
 
 void lcdUploadProfile(eepromValues_t &eepromCurrentValues) {

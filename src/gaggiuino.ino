@@ -771,14 +771,26 @@ void onSelectProfileReceived(uint8_t index) {
   uint8_t zeroIdx = index - 1;
   if (runningCfg.activeProfile == zeroIdx) return;
 
-  // Programmatically tap the corresponding qPf button on the Nextion. Its
-  // release handler updates the highlight + deselects sibling buttons, sets
-  // pId, and fires trigger7 back to the STM. Trigger7 invokes
-  // lcdQuickProfileSwitch which loads the stored profile, persists EEPROM,
-  // and re-broadcasts profile names. So we converge both paths
-  // (Nextion-tap and web-UI-select) through the same pipeline instead of
-  // re-implementing the deselect-sibling visual logic from firmware.
-  lcdClickProfile(index);
+  uint8_t oldIndex = runningCfg.activeProfile + 1;  // capture for visual swap
+
+  // Update local state to mirror what lcdSwitchActiveToStoredProfile does
+  // on a Nextion-initiated tap.
+  eepromValues_t storedSettings = eepromGetCurrentValues();
+  runningCfg.activeProfile = zeroIdx;
+  ACTIVE_PROFILE(runningCfg) = storedSettings.profiles[zeroIdx];
+  updateProfilerPhases();
+
+  // Push pId + active button text + profile values to the Nextion.
+  lcdUploadProfile(runningCfg);
+  // Swap the qPf highlight visuals (deselect old, activate new). The
+  // Nextion `click` command would do this via the button's release
+  // handler but doesn't reliably fire cross-page from the STM, so we do
+  // it explicitly by reading defaults from a known-inactive sibling.
+  lcdSwapProfileHighlight(oldIndex, index);
+
+  eepromWrite(runningCfg);
+  espCommsSendProfileNames(runningCfg);
+  lcdShowPopup("Profile switched");
 }
 
 static void profiling(void) {
