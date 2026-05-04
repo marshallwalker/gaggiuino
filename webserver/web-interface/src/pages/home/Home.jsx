@@ -1,46 +1,17 @@
-import  React, { useState, useEffect, useRef } from 'react';
-import useWebSocket from 'react-use-websocket';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Container, useTheme, Fab, TextField, Grid, Button, Skeleton, Stack,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ScaleIcon from '@mui/icons-material/Scale';
-import {
-  apiHost,
-  filterJsonMessage, filterSocketMessage, MSG_TYPE_SENSOR_DATA,
-} from '../../models/api';
 import GaugeChart from '../../components/chart/GaugeChart';
 import GaugeLiquid from '../../components/chart/GaugeLiquid';
+import useSensorData from '../../hooks/useSensorData';
 
 function Home() {
-  const { lastJsonMessage } = useWebSocket(`ws://${apiHost}/ws`, {
-    share: true,
-    retryOnError: true,
-    shouldReconnect: () => true,
-    reconnectAttempts: 1000,
-    filter: (message) => filterSocketMessage(message, MSG_TYPE_SENSOR_DATA),
-  });
+  const sensorData = useSensorData();
   const theme = useTheme();
-
-  const [scalesPresent, setScalesPresent] = useState(false);
-
-  const [lastSensorData, setLastSensorData] = useState({
-    temperature: 0, targetTemperature: 0, pressure: 0, pumpFlow: 0, weight: 0, scalesPresent: false, waterLvl: 0,
-  });
-
-  useEffect(() => {
-    setScalesPresent(lastSensorData.scalesPresent);
-  }, [lastSensorData]);
-
-  useEffect(() => {
-    if (lastJsonMessage === null) {
-      return;
-    }
-    if (filterJsonMessage(lastJsonMessage, MSG_TYPE_SENSOR_DATA)) {
-      setLastSensorData(lastJsonMessage.data);
-    }
-  }, [lastJsonMessage]);
 
   function boxedComponent(component) {
     return (
@@ -76,9 +47,9 @@ function Home() {
       <Grid container columns={12} spacing={1} sx={{ mb: theme.spacing(1), gap: '0px' }}>
         <Grid item xs={2}>
           <Box sx={{ border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '0px', gap: '0px' }}>
-            {boxedComponent(<GaugeLiquid value={lastSensorData.waterLvl} radius={boxSize.width}/>)}
-            {boxedComponent(<GaugeChart value={lastSensorData.pressure} maintainAspectRatio={false}  primaryColor={theme.palette.pressure.main} title="Pressure" unit="bar" maxValue={14} />)}
-            {boxedComponent(<GaugeChart value={lastSensorData.weight} maintainAspectRatio={false} primaryColor={theme.palette.weight.main} title="Weight" unit="gr" maxValue={100} />)}
+            {boxedComponent(<GaugeLiquid value={sensorData.waterLvl} radius={boxSize.width}/>)}
+            {boxedComponent(<GaugeChart value={sensorData.pressure} maintainAspectRatio={false}  primaryColor={theme.palette.pressure.main} title="Pressure" unit="bar" maxValue={14} />)}
+            {boxedComponent(<GaugeChart value={sensorData.weight} maintainAspectRatio={false} primaryColor={theme.palette.weight.main} title="Weight" unit="gr" maxValue={100} />)}
           </Box>
         </Grid>
         <Grid item xs={6} sx={{gap: '8px'}}>
@@ -95,10 +66,10 @@ function Home() {
         <Grid item xs={4}>
           <Box sx={{ border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '0px' }}>
             <Box sx={{ justifyContent: 'space-evenly', alignItems: 'center', display: 'flex', border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '180px', width: '100%', padding: '0px', backgroundColor: '#292929'}}>
-              {boxedComponent(<GaugeChart value={lastSensorData.temperature} maxValue={lastSensorData.targetTemperature || 100} maintainAspectRatio={true} primaryColor={theme.palette.temperature.main} unit="°C"/>)}
+              {boxedComponent(<GaugeChart value={sensorData.temperature} maxValue={sensorData.targetTemperature || 100} maintainAspectRatio={true} primaryColor={theme.palette.temperature.main} unit="°C"/>)}
             </Box>
             <Box sx={{ justifyContent: 'center', alignItems: 'center', display: 'flex', border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '10px', gap: '25px', }} >
-              <TextField variant="standard" sx={{ width: '10ch', }} id="outlined-read-only-input" label="Target" value={`${Math.round(lastSensorData.targetTemperature)}°C`} InputProps={{readOnly: true,}} />
+              <TextField variant="standard" sx={{ width: '10ch', }} id="outlined-read-only-input" label="Target" value={`${Math.round(sensorData.targetTemperature)}°C`} InputProps={{readOnly: true,}} />
               <Fab color="primary" aria-label="add">
                 <RemoveIcon />
               </Fab>
