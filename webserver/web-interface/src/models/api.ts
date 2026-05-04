@@ -40,6 +40,36 @@ export interface LogRecord {
   log: string;
 }
 
+// Log level letters as emitted by the STM/ESP log() functions:
+// "E (file:line): msg" -> 'E', etc.
+export type LogLevel = 'E' | 'I' | 'V' | 'D';
+
+export const LOG_LEVEL_LABELS: Record<LogLevel, string> = {
+  E: 'Error',
+  I: 'Info',
+  V: 'Verbose',
+  D: 'Debug',
+};
+
+// Numeric ordering for "show this level and above" filtering.
+// Lower number = higher severity.
+export const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
+  E: 1,
+  I: 2,
+  V: 3,
+  D: 4,
+};
+
+export function getLogLevel(log: string): LogLevel {
+  const first = log.charAt(0);
+  if (first === 'E' || first === 'I' || first === 'V' || first === 'D') {
+    return first;
+  }
+  // Unknown prefix - treat as Info so it always shows up at common filter
+  // levels rather than getting hidden.
+  return 'I';
+}
+
 export interface WsEnvelope<T> {
   action: string;
   data: T;

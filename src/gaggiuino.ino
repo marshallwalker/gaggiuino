@@ -174,9 +174,24 @@ static void sensorsRead(void) {
 }
 
 static void sensorReadSwitches(void) {
+  bool prevBrew = currentState.brewSwitchState;
+  bool prevSteam = currentState.steamSwitchState;
+  bool prevHotWater = currentState.hotWaterSwitchState;
+
   currentState.brewSwitchState = brewState();
   currentState.steamSwitchState = steamState();
   currentState.hotWaterSwitchState = waterPinState() || (currentState.brewSwitchState && currentState.steamSwitchState); // use either an actual switch, or the GC/GCP switch combo
+
+  // Log switch state transitions so the LogContainer reflects user actions.
+  if (currentState.brewSwitchState != prevBrew) {
+    LOG_INFO("Brew switch %s", currentState.brewSwitchState ? "ON" : "OFF");
+  }
+  if (currentState.steamSwitchState != prevSteam) {
+    LOG_INFO("Steam switch %s", currentState.steamSwitchState ? "ON" : "OFF");
+  }
+  if (currentState.hotWaterSwitchState != prevHotWater) {
+    LOG_INFO("Hot-water mode %s", currentState.hotWaterSwitchState ? "ON" : "OFF");
+  }
 }
 
 static void sensorsReadTemperature(void) {
@@ -490,7 +505,7 @@ void lcdSwitchActiveToStoredProfile(const eepromValues_t & storedSettings) {
 
 // Save the desired temp values to EEPROM
 void lcdSaveSettingsTrigger(void) {
-  LOG_VERBOSE("Saving values to EEPROM");
+  LOG_INFO("Saving settings to EEPROM");
 
   eepromValues_t eepromCurrentValues = eepromGetCurrentValues();
   lcdFetchPage(eepromCurrentValues, lcdCurrentPageId, runningCfg.activeProfile);
@@ -498,7 +513,7 @@ void lcdSaveSettingsTrigger(void) {
 }
 
 void lcdSaveProfileTrigger(void) {
-  LOG_VERBOSE("Saving profile to EEPROM");
+  LOG_INFO("Saving profile to EEPROM");
 
   eepromValues_t eepromCurrentValues = eepromGetCurrentValues();
   lcdFetchCurrentProfile(eepromCurrentValues);
@@ -506,17 +521,19 @@ void lcdSaveProfileTrigger(void) {
 }
 
 void lcdResetSettingsTrigger(void) {
+  LOG_INFO("Resetting settings to defaults");
   tryEepromWrite(eepromGetDefaultValues());
 }
 
 void lcdLoadDefaultProfileTrigger(void) {
+  LOG_INFO("Loading default profile values");
   lcdSwitchActiveToStoredProfile(eepromGetDefaultValues());
 
   lcdShowPopup("Profile loaded!");
 }
 
 void lcdScalesTareTrigger(void) {
-  LOG_VERBOSE("Tare scales");
+  LOG_INFO("Tare scales");
   if (currentState.scalesPresent) currentState.tarePending = true;
 }
 
@@ -563,6 +580,7 @@ void lcdRefreshElementsTrigger(void) {
 
 void lcdQuickProfileSwitch(void) {
   lcdSwitchActiveToStoredProfile(eepromGetCurrentValues());
+  LOG_INFO("Profile %u selected via Nextion", runningCfg.activeProfile + 1);
   // Persist the active-profile change so a reboot doesn't revert it. Also
   // re-broadcast the cached profile names list to the ESP so any connected
   // web UI sees the new active index immediately rather than waiting for
@@ -771,6 +789,7 @@ void onSelectProfileReceived(uint8_t index) {
   uint8_t zeroIdx = index - 1;
   if (runningCfg.activeProfile == zeroIdx) return;
 
+  LOG_INFO("Profile %u selected via web UI", index);
   uint8_t oldIndex = runningCfg.activeProfile + 1;  // capture for visual swap
 
   // Update local state to mirror what lcdSwitchActiveToStoredProfile does
@@ -805,6 +824,7 @@ static void profiling(void) {
       setPumpOff();
       closeValve();
       brewActive = false;
+      LOG_INFO("Brew stopped (profile finished after %lu ms)", (unsigned long)timeInShot);
     } else if (currentPhase.getType() == PHASE_TYPE::PHASE_TYPE_PRESSURE) {
       float newBarValue = currentPhase.getTarget();
       float flowRestriction =  currentPhase.getRestriction();
@@ -853,11 +873,15 @@ static void brewDetect(void) {
       brewParamsReset();
       paramsReset = true;
       brewActive = true;
+      LOG_INFO("Brew started (profile %u)", runningCfg.activeProfile + 1);
     }
     // needs to be here as it creates a locking state soemtimes if not kept up to date during brew
     // mainly when shotWeight restriction kick in.
     systemHealthTimer = millis() + HEALTHCHECK_EVERY;
   } else {
+    if (brewActive) {
+      LOG_INFO("Brew stopped (switch released)");
+    }
     brewActive = false;
     currentState.pumpClicks = getAndResetClickCounter();
     if (paramsReset) {
@@ -891,6 +915,11 @@ static bool sysReadinessCheck(void) {
   if ((lcdCurrentPageId != NextionPage::BrewGraph && lcdCurrentPageId != NextionPage::BrewManual)
   && currentState.waterLvl < MIN_WATER_LVL)
   {
+    static uint32_t lowWaterLogTimer = 0;
+    if (millis() - lowWaterLogTimer >= 10000u) {
+      lowWaterLogTimer = millis();
+      LOG_ERROR("Water tank below threshold (%u < %u)", (unsigned)currentState.waterLvl, (unsigned)MIN_WATER_LVL);
+    }
     lcdShowPopup("Fill the water tank!");
     return false;
   }
@@ -927,6 +956,11 @@ static inline void sysHealthCheck(float pressureThreshold) {
   Single-pass: modeSelect() skips heater control while the flag is set, and
   the flag clears as soon as the user flips the steam switch off. */
   if (currentState.isSteamForgottenON) {
+    static uint32_t steamForgottenLogTimer = 0;
+    if (millis() - steamForgottenLogTimer >= 5000u) {
+      steamForgottenLogTimer = millis();
+      LOG_ERROR("Steam left ON unused - heaters force-off");
+    }
     lcdShowPopup("TURN STEAM OFF NOW!");
     setPumpOff();
     setBoilerOff();
@@ -944,6 +978,9 @@ static inline void sysHealthCheck(float pressureThreshold) {
   }
   // Should enter the block every "systemHealthTimer" seconds
   if (millis() >= systemHealthTimer) {
+    if (currentState.smoothedPressure >= pressureThreshold && currentState.temperature < 100.f) {
+      LOG_INFO("Releasing excess pressure (%.1f bar)", static_cast<double>(currentState.smoothedPressure));
+    }
     while (currentState.smoothedPressure >= pressureThreshold && currentState.temperature < 100.f)
     {
       //Reloading the watchdog timer, if this function fails to run MCU is rebooted
