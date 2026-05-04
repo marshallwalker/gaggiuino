@@ -74,6 +74,18 @@ void lcdWakeUp(void) {
   myNex.writeNum("sleep", 0);
 }
 
+void lcdClickProfile(uint8_t index /* 1-indexed */) {
+  // Programmatically simulate a release click on home.qPf<index>. The
+  // Nextion's own button release handler manages the visual transition
+  // (highlight active, deselect siblings) and sends trigger7 back to the
+  // STM, which routes through lcdQuickProfileSwitch. This unifies the
+  // visual logic between Nextion-initiated taps and web-UI-initiated
+  // selects so we don't have to mirror the deselect-sibling behaviour
+  // by hand from firmware.
+  String cmd = String("click home.qPf") + index + ",0";
+  myNex.writeStr(cmd.c_str());
+}
+
 void lcdUploadProfile(eepromValues_t &eepromCurrentValues) {
   // Highlight the active profile
   myNex.writeNum("pId", eepromCurrentValues.activeProfile + 1  /* 1-offset in nextion */);
