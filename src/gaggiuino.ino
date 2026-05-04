@@ -136,6 +136,9 @@ void loop(void) {
   brewDetect();
   modeSelect();
   lcdRefresh();
+  currentState.currentTargetTemp = currentState.steamSwitchState
+    ? (float)runningCfg.steamSetPoint
+    : (float)ACTIVE_PROFILE(runningCfg).setpoint;
   espCommsSendSensorData(currentState);
   sysHealthCheck(SYS_PRESSURE_IDLE);
 }

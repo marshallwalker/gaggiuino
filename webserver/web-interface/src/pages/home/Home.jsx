@@ -26,7 +26,7 @@ function Home() {
   const [scalesPresent, setScalesPresent] = useState(false);
 
   const [lastSensorData, setLastSensorData] = useState({
-    temperature: 0, pressure: 0, pumpFlow: 0, weight: 0, scalesPresent: false, waterLvl: 0,
+    temperature: 0, targetTemperature: 0, pressure: 0, pumpFlow: 0, weight: 0, scalesPresent: false, waterLvl: 0,
   });
 
   useEffect(() => {
@@ -98,7 +98,7 @@ function Home() {
               {boxedComponent(<GaugeChart value={lastSensorData.temperature} maintainAspectRatio={true} primaryColor={theme.palette.temperature.main} unit="°C"/>)}
             </Box>
             <Box sx={{ justifyContent: 'center', alignItems: 'center', display: 'flex', border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '10px', gap: '25px', }} >
-              <TextField variant="standard" sx={{ width: '10ch', }} id="outlined-read-only-input" label="Target"  defaultValue="93C" InputProps={{readOnly: true,}} />
+              <TextField variant="standard" sx={{ width: '10ch', }} id="outlined-read-only-input" label="Target" value={`${Math.round(lastSensorData.targetTemperature)}°C`} InputProps={{readOnly: true,}} />
               <Fab color="primary" aria-label="add">
                 <RemoveIcon />
               </Fab>

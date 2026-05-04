@@ -13,6 +13,7 @@ struct SensorState {
   /* calculated water temperature as wanted but not guaranteed
   due to boiler having a hard limit of 4ml/s heat capacity */
   float waterTemperature;     // °C
+  float currentTargetTemp;    // °C - active setpoint (brew or steam, mode-dependent)
   float pressure;             // bar
   float pressureChangeSpeed;  // bar/s
   float pumpFlow;             // ml/s
@@ -35,6 +36,7 @@ struct SensorStateSnapshot {
   bool steamActive;
   bool scalesPresent;
   float temperature;
+  float targetTemperature;
   float pressure;
   float pumpFlow;
   float weightFlow;
