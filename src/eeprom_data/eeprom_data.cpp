@@ -10,6 +10,7 @@
 #include "legacy/eeprom_data_v9.h"
 #include "legacy/eeprom_data_v10.h"
 #include "legacy/eeprom_data_v11.h"
+#include "legacy/eeprom_data_v12.h"
 #include "../log.h"
 
 namespace {
@@ -109,6 +110,11 @@ namespace {
     defaultData.ledR = 9;
     defaultData.ledG = 0;
     defaultData.ledB = 9;
+    // ToF tank calibration: raw mm at full and empty. These match the
+    // pre-v13 hardcoded endpoints so behavior is unchanged until the user
+    // recalibrates from the web UI.
+    defaultData.tofRangeFull = 15;
+    defaultData.tofRangeEmpty = 125;
 
     return defaultData;
   }
@@ -152,7 +158,10 @@ bool eepromWrite(eepromValues_t eepromValuesNew) {
   || eepromValuesNew.scalesF1 < -20000 || eepromValuesNew.scalesF1 > 20000
   || eepromValuesNew.scalesF2 < -20000 || eepromValuesNew.scalesF2 > 20000
   || eepromValuesNew.scalesF1 == 0
-  || eepromValuesNew.scalesF2 == 0)
+  || eepromValuesNew.scalesF2 == 0
+  || eepromValuesNew.tofRangeFull > 1000
+  || eepromValuesNew.tofRangeEmpty > 1000
+  || eepromValuesNew.tofRangeEmpty <= eepromValuesNew.tofRangeFull)
   {
     LOG_ERROR(errMsg);
     return false;

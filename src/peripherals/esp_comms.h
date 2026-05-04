@@ -20,5 +20,6 @@ void onProfileReceived(Profile& profile);
 void onRemoteScalesWeightReceived(float weight);
 void onRemoteScalesDisconnected();
 void onSelectProfileReceived(uint8_t index);
+void onCalibrateTofReceived(TofCalibrationTarget target);
 
 #endif

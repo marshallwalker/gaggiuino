@@ -13,12 +13,12 @@ class TOF {
   public:
     TOF();
     void init(SensorState& sensor);
-    uint16_t readLvl();
-    uint16_t readRangeToPct(uint16_t val);
+    void tick();  // pump sensor + moving avg if a new sample is ready
+    uint16_t readLvl(uint16_t rangeFull, uint16_t rangeEmpty);
+    uint16_t getRawReading() const { return static_cast<uint16_t>(tofReading); }
+    static uint16_t rangeToPct(uint16_t val, uint16_t rangeFull, uint16_t rangeEmpty);
 
   private:
-    // HardwareTimer* hw_timer;
-    // static void TimerHandler10(void);
     uint32_t tofReading = 0;
 };
 
@@ -56,25 +56,32 @@ void TOF::init(SensorState& sensor) {
   #endif
 }
 
-uint16_t TOF::readLvl() {
+void TOF::tick() {
   #ifdef TOF_VL53L0X
-  if(tof_sensor.isRangeComplete()) {
+  if (tof_sensor.isRangeComplete()) {
     TOF::tofReading = mvAvg.reading(tof_sensor.readRangeResult());
   }
   #endif
-  return  TOF::tofReading != 0 ? readRangeToPct(TOF::tofReading) : 30u;
 }
 
-uint16_t TOF::readRangeToPct(uint16_t val) {
-  static const std::array<uint16_t, 10> water_lvl = { 100u, 90u, 80u, 70u, 60u, 50u, 40u, 30u, 20u, 10u };
-  static const std::array<uint16_t, 9> ranges = { 15u, 30u, 45u, 60u, 75u, 90u, 105u, 115u, 125u };
-  for (size_t i = 0; i < ranges.size(); i++) {
-    if (val <= ranges[i]) {
-      return water_lvl[i];
-    }
-  }
+uint16_t TOF::readLvl(uint16_t rangeFull, uint16_t rangeEmpty) {
+  tick();
+  return TOF::tofReading != 0 ? rangeToPct(static_cast<uint16_t>(TOF::tofReading), rangeFull, rangeEmpty) : 30u;
+}
 
-  return 9u;
+// Linear interpolation between the two calibrated endpoints. val is the raw
+// distance the ToF sensor is reporting (mm). rangeFull is the distance when
+// the tank is full (sensor close to water surface), rangeEmpty is the distance
+// when the tank is empty (sensor sees the bottom).
+uint16_t TOF::rangeToPct(uint16_t val, uint16_t rangeFull, uint16_t rangeEmpty) {
+  if (rangeEmpty <= rangeFull) {
+    return 0u; // misconfigured calibration; defaults guarantee this can't happen
+  }
+  if (val <= rangeFull) return 100u;
+  if (val >= rangeEmpty) return 0u;
+  const uint32_t span = static_cast<uint32_t>(rangeEmpty - rangeFull);
+  const uint32_t fromEmpty = static_cast<uint32_t>(rangeEmpty - val);
+  return static_cast<uint16_t>((fromEmpty * 100u) / span);
 }
 
 #endif

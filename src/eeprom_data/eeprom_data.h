@@ -123,6 +123,10 @@ struct eepromValues_t {
   uint8_t  ledR;
   uint8_t  ledG;
   uint8_t  ledB;
+  // ToF water-tank calibration: raw mm reading at the "full" and "empty"
+  // reference points. readLvl() linearly interpolates between them.
+  uint16_t tofRangeFull;
+  uint16_t tofRangeEmpty;
 };
 
 void eepromInit(void);

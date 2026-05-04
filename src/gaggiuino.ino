@@ -297,12 +297,13 @@ static void calculateWeightAndFlow(void) {
 // return the reading in mm of the tank water level.
 static void readTankWaterLevel(void) {
   if (lcdCurrentPageId == NextionPage::Home) {
-    // static uint32_t tof_timeout = millis();
-    // if (millis() >= tof_timeout) {
-    currentState.waterLvl = tof.readLvl();
-      // tof_timeout = millis() + 500;
-    // }
+    currentState.waterLvl = tof.readLvl(runningCfg.tofRangeFull, runningCfg.tofRangeEmpty);
+  } else {
+    // Keep the raw mm reading fresh so the web UI's calibration page stays
+    // live even when the LCD isn't sitting on Home.
+    tof.tick();
   }
+  currentState.tofRangeRaw = tof.getRawReading();
 }
 
 //##############################################################################################################################
@@ -781,6 +782,32 @@ void addPhase(PHASE_TYPE type, Transition target, float restriction, int timeMs,
 }
 
 void onProfileReceived(Profile& newProfile) {
+}
+
+void onCalibrateTofReceived(TofCalibrationTarget target) {
+  // Snapshot the current raw mm reading and persist it as either the "full"
+  // or "empty" reference. The web UI reads the live raw via SensorStateSnapshot
+  // so the user sees the value being captured.
+  uint16_t raw = tof.getRawReading();
+  if (raw == 0) {
+    LOG_ERROR("ToF calibration ignored: sensor reported 0mm (no signal)");
+    return;
+  }
+
+  if (target == TofCalibrationTarget::TOF_CALIBRATE_FULL) {
+    runningCfg.tofRangeFull = raw;
+    LOG_INFO("ToF calibrated FULL @ %umm", raw);
+  } else {
+    runningCfg.tofRangeEmpty = raw;
+    LOG_INFO("ToF calibrated EMPTY @ %umm", raw);
+  }
+
+  // eepromWrite enforces empty > full and a sane upper bound. If the user
+  // captures the new endpoint in the wrong order it will be rejected here.
+  if (!eepromWrite(runningCfg)) {
+    LOG_ERROR("ToF calibration rejected by eepromWrite (endpoints out of range or empty <= full)");
+    runningCfg = eepromGetCurrentValues(); // roll back the in-memory copy
+  }
 }
 
 void onSelectProfileReceived(uint8_t index) {

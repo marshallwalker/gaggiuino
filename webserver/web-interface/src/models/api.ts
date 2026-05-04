@@ -14,6 +14,7 @@ export interface SensorData {
   weightFlow: number;
   weight: number;
   waterLvl: number;
+  tofRangeRaw: number;
   activeProfile: number;
 }
 

@@ -8,6 +8,7 @@ void stmCommsReadData();
 void stmCommsSendWeight(float weight);
 void stmCommsSendScaleDisconnected();
 void stmCommsSendSelectProfile(uint8_t index);
+void stmCommsSendCalibrateTof(TofCalibrationTarget target);
 
 bool stmCommsHasProfileNames();
 const ProfileNamesSnapshot& stmCommsGetCachedProfileNames();

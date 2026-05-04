@@ -27,6 +27,7 @@ void espCommsInit() {
   McuCommsSingleton::getInstance().setRemoteScalesWeightReceivedCallback(onRemoteScalesWeightReceived);
   McuCommsSingleton::getInstance().setRemoteScalesDisconnectedCallback(onRemoteScalesDisconnected);
   McuCommsSingleton::getInstance().setSelectProfileCommandCallback(onSelectProfileReceived);
+  McuCommsSingleton::getInstance().setCalibrateTofCommandCallback(onCalibrateTofReceived);
 }
 
 void espCommsReadData() {
@@ -52,6 +53,7 @@ void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
       .weightFlow = state.smoothedWeightFlow,
       .weight = state.weight,
       .waterLvl = state.waterLvl,
+      .tofRangeRaw = state.tofRangeRaw,
       .activeProfile = state.activeProfile
     };
     McuCommsSingleton::getInstance().sendSensorStateSnapshot(sensorSnapshot);

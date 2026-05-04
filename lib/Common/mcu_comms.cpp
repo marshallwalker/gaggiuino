@@ -166,6 +166,12 @@ void McuComms::logRecordReceived(LogSnapshot& snapshot) const {
   }
 }
 
+void McuComms::calibrateTofCommandReceived(TofCalibrationTarget target) const {
+  if (calibrateTofCommandCallback) {
+    calibrateTofCommandCallback(target);
+  }
+}
+
 void McuComms::responseReceived(McuCommsResponse& response) const {
   if (responseReceivedCallback) {
     responseReceivedCallback(response);
@@ -272,6 +278,10 @@ void McuComms::setLogRecordReceivedCallback(LogRecordReceivedCallback callback) 
   logRecordCallback = callback;
 }
 
+void McuComms::setCalibrateTofCommandCallback(CalibrateTofCommandCallback callback) {
+  calibrateTofCommandCallback = callback;
+}
+
 void McuComms::setResponseReceivedCallback(ResponseReceivedCallback callback) {
   responseReceivedCallback = callback;
 }
@@ -337,6 +347,13 @@ void McuComms::sendLogRecord(const LogSnapshot& snapshot) {
   std::vector<uint8_t> buffer(sizeof(LogSnapshot));
   memcpy(buffer.data(), &snapshot, sizeof(LogSnapshot));
   sendMultiPacket(buffer, sizeof(LogSnapshot), static_cast<uint8_t>(McuCommsMessageType::MCUC_LOG_RECORD));
+}
+
+void McuComms::sendCalibrateTof(TofCalibrationTarget target) {
+  if (!isConnected()) return;
+  uint8_t payload = static_cast<uint8_t>(target);
+  uint16_t messageSize = transfer.txObj(payload);
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_CALIBRATE_TOF));
 }
 
 void McuComms::readDataAndTick() {
@@ -423,6 +440,12 @@ void McuComms::readDataAndTick() {
       size_t toCopy = data.size() < sizeof(LogSnapshot) ? data.size() : sizeof(LogSnapshot);
       memcpy(&snapshot, data.data(), toCopy);
       logRecordReceived(snapshot);
+      break;
+    } case McuCommsMessageType::MCUC_CMD_CALIBRATE_TOF: {
+      log("Received a calibrate-tof command\n");
+      uint8_t target = 0;
+      transfer.rxObj(target);
+      calibrateTofCommandReceived(static_cast<TofCalibrationTarget>(target));
       break;
     }
     default:

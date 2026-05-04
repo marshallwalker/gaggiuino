@@ -38,6 +38,12 @@ enum class McuCommsMessageType : uint8_t {
   MCUC_DATA_PROFILE_NAMES = 13,    // STM -> ESP: all 5 profile names
   MCUC_CMD_SELECT_PROFILE = 14,    // ESP -> STM: switch active profile (1-indexed)
   MCUC_LOG_RECORD = 15,            // STM -> ESP: pre-formatted log line
+  MCUC_CMD_CALIBRATE_TOF = 16,     // ESP -> STM: calibrate ToF endpoint (payload: TofCalibrationTarget)
+};
+
+enum class TofCalibrationTarget : uint8_t {
+  TOF_CALIBRATE_FULL = 1,
+  TOF_CALIBRATE_EMPTY = 2,
 };
 
 #define LOG_RECORD_LEN 128
@@ -74,6 +80,7 @@ private:
   using ProfileNamesSnapshotReceivedCallback = std::function<void(ProfileNamesSnapshot&)>;
   using SelectProfileCommandCallback = std::function<void(uint8_t)>;
   using LogRecordReceivedCallback = std::function<void(LogSnapshot&)>;
+  using CalibrateTofCommandCallback = std::function<void(TofCalibrationTarget)>;
 
   uint32_t lastByteReceived = 0;
   uint32_t lastHeartbeatSent = 0;
@@ -89,6 +96,7 @@ private:
   ProfileNamesSnapshotReceivedCallback profileNamesSnapshotCallback = nullptr;
   SelectProfileCommandCallback selectProfileCommandCallback = nullptr;
   LogRecordReceivedCallback logRecordCallback = nullptr;
+  CalibrateTofCommandCallback calibrateTofCommandCallback = nullptr;
   Stream* debugPort = nullptr;
   size_t packetSize;
 
@@ -119,6 +127,7 @@ private:
   void profileNamesSnapshotReceived(ProfileNamesSnapshot& snapshot) const;
   void selectProfileCommandReceived(uint8_t index) const;
   void logRecordReceived(LogSnapshot& snapshot) const;
+  void calibrateTofCommandReceived(TofCalibrationTarget target) const;
 
 public:
   void begin(Stream& serial, uint32_t waitConnectionMillis = 0, size_t packetSize = MAX_DATA_PER_PACKET_DEFAULT);
@@ -133,6 +142,7 @@ public:
   void setProfileNamesSnapshotCallback(ProfileNamesSnapshotReceivedCallback callback);
   void setSelectProfileCommandCallback(SelectProfileCommandCallback callback);
   void setLogRecordReceivedCallback(LogRecordReceivedCallback callback);
+  void setCalibrateTofCommandCallback(CalibrateTofCommandCallback callback);
 
   void sendShotData(const ShotSnapshot& snapshot);
   void sendProfile(Profile& profile);
@@ -144,6 +154,7 @@ public:
   void sendProfileNamesSnapshot(const ProfileNamesSnapshot& snapshot);
   void sendSelectProfile(uint8_t index);
   void sendLogRecord(const LogSnapshot& snapshot);
+  void sendCalibrateTof(TofCalibrationTarget target);
 
   bool isConnected();
   void readDataAndTick();

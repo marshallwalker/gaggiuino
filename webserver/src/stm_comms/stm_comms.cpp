@@ -60,6 +60,12 @@ void stmCommsSendSelectProfile(uint8_t index) {
   xSemaphoreGiveRecursive(mcucLock);
 }
 
+void stmCommsSendCalibrateTof(TofCalibrationTarget target) {
+  if (xSemaphoreTakeRecursive(mcucLock, portMAX_DELAY) == pdFALSE) return;
+  mcuComms.sendCalibrateTof(target);
+  xSemaphoreGiveRecursive(mcucLock);
+}
+
 bool stmCommsHasProfileNames() {
   return hasProfileNames;
 }

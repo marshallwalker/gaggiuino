@@ -9,6 +9,7 @@ import Grid from '@mui/material/Grid';
 import WifiSettingsCard from '../../components/wifi/WifiSettingsCard';
 import ProgressBar from '../../components/inputs/ProgressBar';
 import LogContainer from '../../components/log/LogContainer';
+import TofCalibrationCard from '../../components/calibration/TofCalibrationCard';
 
 export default function Settings() {
   const theme = useTheme();
@@ -43,6 +44,9 @@ export default function Settings() {
                 <Button variant="contained" component="label">Upload</Button>
               </CardActions>
             </Card>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TofCalibrationCard />
           </Grid>
           <Grid item xs={12} sm={12}>
             <LogContainer />

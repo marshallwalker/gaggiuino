@@ -20,6 +20,7 @@ export const DEFAULT_SENSOR_DATA: SensorData = {
   weightFlow: 0,
   weight: 0,
   waterLvl: 0,
+  tofRangeRaw: 0,
   activeProfile: 1,
 };
 
