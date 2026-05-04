@@ -390,8 +390,16 @@ void McuComms::readDataAndTick() {
     } case McuCommsMessageType::MCUC_DATA_PROFILE_NAMES: {
       log("Received a profile names snapshot packet\n");
       std::vector<uint8_t> data = receiveMultiPacket();
-      ProfileNamesSnapshot snapshot;
-      memcpy(&snapshot, data.data(), sizeof(ProfileNamesSnapshot));
+      if (data.empty()) {
+        log("Profile names packet was empty - skipping\n");
+        break;
+      }
+      // Zero-init so any unfilled bytes (e.g. timed-out multipacket that
+      // returned fewer bytes than the struct size) stay '\0' instead of
+      // stale heap memory.
+      ProfileNamesSnapshot snapshot = {};
+      size_t toCopy = data.size() < sizeof(ProfileNamesSnapshot) ? data.size() : sizeof(ProfileNamesSnapshot);
+      memcpy(&snapshot, data.data(), toCopy);
       profileNamesSnapshotReceived(snapshot);
       break;
     } case McuCommsMessageType::MCUC_CMD_SELECT_PROFILE: {
@@ -403,8 +411,17 @@ void McuComms::readDataAndTick() {
     } case McuCommsMessageType::MCUC_LOG_RECORD: {
       log("Received a log record\n");
       std::vector<uint8_t> data = receiveMultiPacket();
-      LogSnapshot snapshot;
-      memcpy(&snapshot, data.data(), sizeof(LogSnapshot));
+      if (data.empty()) {
+        log("Log packet was empty - skipping\n");
+        break;
+      }
+      // Zero-init so any unfilled bytes (e.g. timed-out multipacket that
+      // returned fewer bytes than the struct size) stay '\0' instead of
+      // stale heap memory - empty message[] would manifest as a blank
+      // [stm] line in the LogContainer.
+      LogSnapshot snapshot = {};
+      size_t toCopy = data.size() < sizeof(LogSnapshot) ? data.size() : sizeof(LogSnapshot);
+      memcpy(&snapshot, data.data(), toCopy);
       logRecordReceived(snapshot);
       break;
     }

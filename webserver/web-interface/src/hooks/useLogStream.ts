@@ -20,6 +20,12 @@ const subscribers = new Set<(snapshot: LogRecord[]) => void>();
 // Track whether we've already seeded the buffer from /api/logs this session
 // so we don't refetch on every component mount.
 let historyFetched = false;
+// Track the last WS message reference processed at module level so multiple
+// useLogStream() callers (App-level + LogContainer) don't both append the
+// same incoming message. With share=true on react-use-websocket, every hook
+// instance receives the identical lastJsonMessage object - so a strict
+// reference equality check dedupes cleanly.
+let lastProcessedMessage: unknown = null;
 
 function notify() {
   subscribers.forEach((sub) => sub(buffer));
@@ -99,6 +105,10 @@ export default function useLogStream(maxLines: number = DEFAULT_MAX_LINES): LogR
   });
 
   useEffect(() => {
+    if (lastJsonMessage === null) return;
+    if (lastJsonMessage === lastProcessedMessage) return;
+    lastProcessedMessage = lastJsonMessage;
+
     const envelope = lastJsonMessage as WsEnvelope<LogRecord> | null;
     if (envelope && filterJsonMessage(envelope, MSG_TYPE_LOG)) {
       appendLog(envelope.data, maxLines);
