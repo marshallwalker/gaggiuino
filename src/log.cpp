@@ -1,5 +1,6 @@
 /* 09:32 15/03/2023 - change triggering comment */
 #include "log.h"
+#include "peripherals/esp_comms.h"
 
 void log_init() {
   USART_DEBUG.begin(115200);
@@ -18,6 +19,8 @@ void log(const char* prefix, const char* file, const int line, const char* msg, 
 
   char logLineBuf[LOG_MAX_PREFIX_LEN + LOG_MAX_STRING_LEN];
   check = snprintf(logLineBuf, sizeof(logLineBuf), "%s (%s:%i): %s", prefix, file, line, msgBuf);
-  if (check > 0 && static_cast<unsigned int>(check) <= sizeof(logLineBuf))
+  if (check > 0 && static_cast<unsigned int>(check) <= sizeof(logLineBuf)) {
     USART_DEBUG.println(logLineBuf);
+    espCommsSendLog(logLineBuf);  // no-op until ESP comms is connected
+  }
 }

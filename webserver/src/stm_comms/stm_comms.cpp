@@ -24,6 +24,7 @@ void stmCommsInit(HardwareSerial& serial) {
   mcuComms.setSensorStateSnapshotCallback(onSensorStateSnapshotReceived);
   mcuComms.setRemoteScalesTareCommandCallback(onScalesTareReceived);
   mcuComms.setProfileNamesSnapshotCallback(onProfileNamesSnapshotInternal);
+  mcuComms.setLogRecordReceivedCallback(onLogRecordReceived);
 
   xTaskCreateUniversal(stmCommsTask, "stmComms", configMINIMAL_STACK_SIZE + 2400, NULL, PRIORITY_STM_COMMS, NULL, CORE_STM_COMMS);
 }

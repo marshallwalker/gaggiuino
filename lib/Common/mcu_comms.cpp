@@ -160,6 +160,12 @@ void McuComms::selectProfileCommandReceived(uint8_t index) const {
   }
 }
 
+void McuComms::logRecordReceived(LogSnapshot& snapshot) const {
+  if (logRecordCallback) {
+    logRecordCallback(snapshot);
+  }
+}
+
 void McuComms::responseReceived(McuCommsResponse& response) const {
   if (responseReceivedCallback) {
     responseReceivedCallback(response);
@@ -262,6 +268,10 @@ void McuComms::setSelectProfileCommandCallback(SelectProfileCommandCallback call
   selectProfileCommandCallback = callback;
 }
 
+void McuComms::setLogRecordReceivedCallback(LogRecordReceivedCallback callback) {
+  logRecordCallback = callback;
+}
+
 void McuComms::setResponseReceivedCallback(ResponseReceivedCallback callback) {
   responseReceivedCallback = callback;
 }
@@ -320,6 +330,13 @@ void McuComms::sendSelectProfile(uint8_t index) {
   if (!isConnected()) return;
   uint16_t messageSize = transfer.txObj(index);
   transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_SELECT_PROFILE));
+}
+
+void McuComms::sendLogRecord(const LogSnapshot& snapshot) {
+  if (!isConnected()) return;
+  std::vector<uint8_t> buffer(sizeof(LogSnapshot));
+  memcpy(buffer.data(), &snapshot, sizeof(LogSnapshot));
+  sendMultiPacket(buffer, sizeof(LogSnapshot), static_cast<uint8_t>(McuCommsMessageType::MCUC_LOG_RECORD));
 }
 
 void McuComms::readDataAndTick() {
@@ -382,6 +399,13 @@ void McuComms::readDataAndTick() {
       uint8_t index = 0;
       transfer.rxObj(index);
       selectProfileCommandReceived(index);
+      break;
+    } case McuCommsMessageType::MCUC_LOG_RECORD: {
+      log("Received a log record\n");
+      std::vector<uint8_t> data = receiveMultiPacket();
+      LogSnapshot snapshot;
+      memcpy(&snapshot, data.data(), sizeof(LogSnapshot));
+      logRecordReceived(snapshot);
       break;
     }
     default:

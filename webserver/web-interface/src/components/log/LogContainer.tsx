@@ -2,10 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, FormControlLabel, Paper, Stack, Switch, Typography, useTheme,
 } from '@mui/material';
-import useWebSocket from 'react-use-websocket';
-import {
-  MSG_TYPE_LOG, apiHost, filterSocketMessage, LogRecord, WsEnvelope,
-} from '../../models/api';
+import useLogStream from '../../hooks/useLogStream';
 
 interface LogContainerProps {
   maxLines?: number;
@@ -13,32 +10,9 @@ interface LogContainerProps {
 
 export default function LogContainer({ maxLines = 200 }: LogContainerProps) {
   const theme = useTheme();
-  const [logLines, setLogLines] = useState<LogRecord[]>([]);
+  const logLines = useLogStream(maxLines);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [followLogs, setFollowLogs] = useState(false);
-
-  const { lastJsonMessage } = useWebSocket(`ws://${apiHost}/ws`, {
-    share: true,
-    retryOnError: true,
-    shouldReconnect: () => true,
-    reconnectAttempts: 1000,
-    filter: (message) => filterSocketMessage(message, MSG_TYPE_LOG),
-  });
-
-  useEffect(() => {
-    const envelope = lastJsonMessage as WsEnvelope<LogRecord> | null;
-    if (envelope) {
-      const logLine = envelope.data;
-      setLogLines((prevLogLines) => {
-        const next = [...prevLogLines];
-        while (next.length > maxLines) {
-          next.shift();
-        }
-        next.push(logLine);
-        return next;
-      });
-    }
-  }, [lastJsonMessage]);
 
   useEffect(() => {
     if (followLogs) {

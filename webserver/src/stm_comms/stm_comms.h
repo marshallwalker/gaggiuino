@@ -17,5 +17,6 @@ void onSensorStateSnapshotReceived(SensorStateSnapshot& snapshot);
 void onShotSnapshotReceived(ShotSnapshot& snapshot);
 void onScalesTareReceived();
 void onProfileNamesSnapshotReceived(ProfileNamesSnapshot& snapshot);
+void onLogRecordReceived(LogSnapshot& snapshot);
 
 #endif

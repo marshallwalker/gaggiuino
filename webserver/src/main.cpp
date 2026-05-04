@@ -39,3 +39,9 @@ void onScalesTareReceived() {
 void onProfileNamesSnapshotReceived(ProfileNamesSnapshot& snapshot) {
   wsSendProfileNamesSnapshotToClients(snapshot);
 }
+
+void onLogRecordReceived(LogSnapshot& snapshot) {
+  // Defensive null-termination before re-broadcasting.
+  snapshot.message[LOG_RECORD_LEN - 1] = '\0';
+  wsSendLog(std::string(snapshot.message), "stm");
+}

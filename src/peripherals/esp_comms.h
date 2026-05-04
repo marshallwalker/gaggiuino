@@ -13,6 +13,7 @@ void espCommsSendSensorData(const SensorState& state, uint32_t frequency = 1000)
 void espCommsSendShotData(ShotSnapshot& shotData, uint32_t frequency = 100);
 void espCommsSendTareScalesCommand();
 void espCommsSendProfileNames(const eepromValues_t& cfg);
+void espCommsSendLog(const char* message);
 
 void onProfileReceived(Profile& profile);
 void onRemoteScalesWeightReceived(float weight);

@@ -37,6 +37,12 @@ enum class McuCommsMessageType : uint8_t {
 
   MCUC_DATA_PROFILE_NAMES = 13,    // STM -> ESP: all 5 profile names
   MCUC_CMD_SELECT_PROFILE = 14,    // ESP -> STM: switch active profile (1-indexed)
+  MCUC_LOG_RECORD = 15,            // STM -> ESP: pre-formatted log line
+};
+
+#define LOG_RECORD_LEN 128
+struct LogSnapshot {
+  char message[LOG_RECORD_LEN];
 };
 
 enum class McuCommsResponseResult : uint8_t {
@@ -67,6 +73,7 @@ private:
   using RemoteScalesDisconnectedCallback = std::function<void()>;
   using ProfileNamesSnapshotReceivedCallback = std::function<void(ProfileNamesSnapshot&)>;
   using SelectProfileCommandCallback = std::function<void(uint8_t)>;
+  using LogRecordReceivedCallback = std::function<void(LogSnapshot&)>;
 
   uint32_t lastByteReceived = 0;
   uint32_t lastHeartbeatSent = 0;
@@ -81,6 +88,7 @@ private:
   RemoteScalesDisconnectedCallback remoteScalesDisconnectedCallback = nullptr;
   ProfileNamesSnapshotReceivedCallback profileNamesSnapshotCallback = nullptr;
   SelectProfileCommandCallback selectProfileCommandCallback = nullptr;
+  LogRecordReceivedCallback logRecordCallback = nullptr;
   Stream* debugPort = nullptr;
   size_t packetSize;
 
@@ -110,6 +118,7 @@ private:
   void remoteScalesDisconnected() const;
   void profileNamesSnapshotReceived(ProfileNamesSnapshot& snapshot) const;
   void selectProfileCommandReceived(uint8_t index) const;
+  void logRecordReceived(LogSnapshot& snapshot) const;
 
 public:
   void begin(Stream& serial, uint32_t waitConnectionMillis = 0, size_t packetSize = MAX_DATA_PER_PACKET_DEFAULT);
@@ -123,6 +132,7 @@ public:
   void setRemoteScalesDisconnectedCallback(RemoteScalesDisconnectedCallback callback);
   void setProfileNamesSnapshotCallback(ProfileNamesSnapshotReceivedCallback callback);
   void setSelectProfileCommandCallback(SelectProfileCommandCallback callback);
+  void setLogRecordReceivedCallback(LogRecordReceivedCallback callback);
 
   void sendShotData(const ShotSnapshot& snapshot);
   void sendProfile(Profile& profile);
@@ -133,6 +143,7 @@ public:
   void sendRemoteScalesDisconnected();
   void sendProfileNamesSnapshot(const ProfileNamesSnapshot& snapshot);
   void sendSelectProfile(uint8_t index);
+  void sendLogRecord(const LogSnapshot& snapshot);
 
   bool isConnected();
   void readDataAndTick();

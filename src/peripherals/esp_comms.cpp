@@ -76,3 +76,10 @@ void espCommsSendProfileNames(const eepromValues_t& cfg) {
   }
   McuCommsSingleton::getInstance().sendProfileNamesSnapshot(snapshot);
 }
+
+void espCommsSendLog(const char* message) {
+  LogSnapshot snapshot = {};
+  strncpy(snapshot.message, message, LOG_RECORD_LEN - 1);
+  snapshot.message[LOG_RECORD_LEN - 1] = '\0';
+  McuCommsSingleton::getInstance().sendLogRecord(snapshot);
+}
