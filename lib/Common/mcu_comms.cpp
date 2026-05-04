@@ -421,7 +421,16 @@ void McuComms::readDataAndTick() {
   }
 }
 
-/** If we haven't heard from the other side for 3 heartbeat times we're no longer connected */
+/**
+ * Connected when we have actually received at least one byte from the peer
+ * AND it was within the last 3 heartbeat intervals. The lastByteReceived > 0
+ * check matters because lastByteReceived is initialized to 0 - without this
+ * guard, isConnected() returns true for the first ~6 seconds after boot even
+ * before begin() has been called or any peer is wired up, which lets sendXxx
+ * methods write to an uninitialized SerialTransfer underlying stream
+ * (HardFault). Relevant the moment any code on the send side runs during
+ * early boot - e.g. logs forwarded from log.cpp before espCommsInit().
+ */
 bool McuComms::isConnected() {
-  return millis() - lastByteReceived < 3 * HEARTBEAT_TIME_DELTA_MSEC;
+  return lastByteReceived > 0 && (millis() - lastByteReceived) < 3 * HEARTBEAT_TIME_DELTA_MSEC;
 }
