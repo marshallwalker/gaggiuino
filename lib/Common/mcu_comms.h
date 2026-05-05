@@ -85,7 +85,10 @@ struct ProfileDataSnapshot {
   float    preinfusionBar;
   uint16_t setpoint;               // brew temp °C
   float    shotDose;               // input dose in grams
-  float    shotStopOnCustomWeight; // target output weight when stopOnWeightState is true
+  // Resolved target output weight when stopOnWeightState is true. The STM
+  // applies the same shotStopOnCustomWeight-vs-shotPreset fallback logic as
+  // the brew loop so the UI doesn't have to know about preset multipliers.
+  float    targetWeight;
   bool     stopOnWeightState;
 };
 

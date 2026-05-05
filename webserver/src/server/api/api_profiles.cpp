@@ -107,7 +107,7 @@ void handleGetProfileByIndex(AsyncWebServerRequest* request, uint8_t index) {
   json["preinfusionBar"] = s.preinfusionBar;
   json["setpoint"] = s.setpoint;
   json["shotDose"] = s.shotDose;
-  json["shotStopOnCustomWeight"] = s.shotStopOnCustomWeight;
+  json["targetWeight"] = s.targetWeight;
   json["stopOnWeightState"] = s.stopOnWeightState;
   serializeJson(json, *response);
   request->send(response);

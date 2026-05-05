@@ -67,7 +67,7 @@ export function ProfileSelector() {
   // when the profile stops on weight; otherwise the target field is unused.
   const ratio =
     activeData && activeData.stopOnWeightState && activeData.shotDose > 0
-      ? `${fmtGrams(activeData.shotDose)}g : ${fmtGrams(activeData.shotStopOnCustomWeight)}g`
+      ? `${fmtGrams(activeData.shotDose)}g : ${fmtGrams(activeData.targetWeight)}g`
       : null
 
   return (
@@ -132,7 +132,7 @@ export function ProfileSelector() {
                     Target Weight
                   </p>
                   <p className="text-sm font-medium text-foreground mt-0.5">
-                    {fmtGrams(activeData.shotStopOnCustomWeight)} g
+                    {fmtGrams(activeData.targetWeight)} g
                   </p>
                 </div>
                 <div className="bg-secondary rounded-lg p-2">

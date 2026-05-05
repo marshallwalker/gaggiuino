@@ -106,7 +106,12 @@ void espCommsSendProfileData(const eepromValues_t& cfg, uint8_t index) {
   snapshot.preinfusionBar = p.preinfusionBar;
   snapshot.setpoint = p.setpoint;
   snapshot.shotDose = p.shotDose;
-  snapshot.shotStopOnCustomWeight = p.shotStopOnCustomWeight;
+  // Match the brew-loop logic in gaggiuino.ino:610: use shotStopOnCustomWeight
+  // when it's set (>= 1g), otherwise fall back to dose × preset multiplier.
+  // The UI sees one resolved target instead of two fields it has to combine.
+  snapshot.targetWeight = (p.shotStopOnCustomWeight < 1.f)
+    ? p.shotDose * (float)p.shotPreset
+    : p.shotStopOnCustomWeight;
   snapshot.stopOnWeightState = p.stopOnWeightState;
   McuCommsSingleton::getInstance().sendProfileDataSnapshot(snapshot);
 }

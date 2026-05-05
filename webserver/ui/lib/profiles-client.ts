@@ -16,9 +16,13 @@ export interface ProfileData {
   name: string;
   preinfusionSec: number;
   preinfusionBar: number;
-  setpoint: number;            // brew temp °C
-  shotDose: number;            // input dose in grams
-  shotStopOnCustomWeight: number;
+  setpoint: number;       // brew temp °C
+  shotDose: number;       // input dose in grams
+  // Resolved target output weight (grams). STM applies the firmware's
+  // custom-weight-vs-preset-multiplier fallback (shotStopOnCustomWeight if
+  // set, else shotDose × shotPreset) so the UI just reads one number.
+  // Only meaningful when stopOnWeightState is true.
+  targetWeight: number;
   stopOnWeightState: boolean;
 }
 

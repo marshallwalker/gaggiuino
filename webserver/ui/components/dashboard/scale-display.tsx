@@ -23,8 +23,8 @@ export function ScaleDisplay() {
   // setting. If the profile doesn't stop on weight, there's no meaningful
   // target so we hide the bar.
   const targetWeight =
-    profile && profile.stopOnWeightState && profile.shotStopOnCustomWeight > 0
-      ? profile.shotStopOnCustomWeight
+    profile && profile.stopOnWeightState && profile.targetWeight > 0
+      ? profile.targetWeight
       : null
   const progress = targetWeight ? Math.min((weight / targetWeight) * 100, 100) : 0
 
