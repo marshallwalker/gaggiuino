@@ -1,28 +1,35 @@
-## Web interfaces
+## Webserver (ESP32)
 
-Two React apps live alongside this directory. Both build into `webroot/`, which
-is what gets packed into LittleFS and flashed to the ESP32. Only one can be
-the active UI at a time — whichever was built most recently wins.
+The ESP32 sits between the STM32 firmware and the user. It runs a small
+HTTP + WebSocket server, hosts a React app from LittleFS, and forwards
+commands and telemetry to/from the STM over UART.
 
-| Folder | Purpose |
-|---|---|
-| [`web-interface/`](web-interface/) | Legacy / current production UI. Already migrated from MUI to Tailwind+shadcn. |
-| [`ui/`](ui/) | In-progress redesign. See its own README for the build conventions. |
+```
+webserver/
+├── src/        ← ESP32 C++ webserver code (REST + WS + STM comms)
+├── ui/         ← React app (Next.js 16 + Tailwind 4 + shadcn). See ui/README.md.
+├── webroot/    ← Static build artifacts that get packed into LittleFS
+└── tools/      ← mklittlefs binaries + replace_fs.py
+```
 
 ### To flash the device
 
-1. Build the UI you want live: `cd web-interface && pnpm build` (or `cd ui && pnpm build`). Either writes to `../webroot/`.
-2. From the project root, on the build PC: `pio run -t uploadfs -e webserver` (PlatformIO's *Upload Filesystem Image* task).
-3. Then `pio run -t upload -e webserver` for the C++ firmware itself if it changed.
+1. From `ui/`, build the UI: `pnpm install && pnpm build`. The static
+   export lands in `../webroot/`.
+2. From the project root, on the build PC: `pio run -t uploadfs -e webserver`
+   (PlatformIO's *Upload Filesystem Image* task). Packs `webroot/` into
+   the LittleFS image and flashes it.
+3. If the C++ firmware in `src/` changed: `pio run -t upload -e webserver`.
 
 ### To connect to WiFi
 
 1. Connect to the `Gaggiuino` AP.
 2. Open `http://192.168.4.1` in your browser.
-3. Go to Settings and select your network / enter password.
+3. Go to Settings and select your network / enter the password.
 
 ### Local development
 
-`pnpm dev` from either UI folder runs Vite at `localhost:3000`, proxying
-`/api` and `/ws` to the real ESP IP hardcoded in `vite.config.ts`. Update
-that IP when the ESP moves networks.
+`pnpm dev` from `ui/` starts the dev server at `localhost:3000`. HTTP
+requests to `/api` are proxied to a hardcoded ESP IP set in
+`ui/next.config.mjs` — update it when the ESP moves networks. WebSocket
+proxying needs a separate path; see `ui/README.md` for the workaround.
