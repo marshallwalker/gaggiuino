@@ -1,42 +1,37 @@
-import * as React from 'react';
-import LinearProgress, { LinearProgressProps } from '@mui/material/LinearProgress';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
+import React, { useEffect, useState } from 'react';
+import { Progress } from '@/components/ui/progress';
 
-interface LinearProgressWithLabelProps extends LinearProgressProps {
-  value: number;
+interface ProgressBarProps {
+  value?: number;
 }
 
-function LinearProgressWithLabel(props: LinearProgressWithLabelProps) {
+function ProgressWithLabel({ value }: { value: number }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      <Box sx={{ width: '100%', mr: 1 }}>
-        <LinearProgress variant="determinate" {...props} />
-      </Box>
-      <Box sx={{ minWidth: 35 }}>
-        <Typography variant="body2" color="text.secondary">
-          {`${Math.round(props.value)}%`}
-        </Typography>
-      </Box>
-    </Box>
+    <div className="flex items-center w-full">
+      <div className="flex-1 mr-2">
+        <Progress value={value} />
+      </div>
+      <div className="min-w-[35px] text-sm text-muted-foreground">
+        {`${Math.round(value)}%`}
+      </div>
+    </div>
   );
 }
 
-export default function LinearWithValueLabel() {
-  const [progress, setProgress] = React.useState(10);
+export default function ProgressBar({ value }: ProgressBarProps = {}) {
+  const [progress, setProgress] = useState(10);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (value !== undefined) return undefined;
     const timer = setInterval(() => {
-      setProgress((prevProgress) => (prevProgress >= 100 ? 10 : prevProgress + 10));
+      setProgress((prev) => (prev >= 100 ? 10 : prev + 10));
     }, 800);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
+    return () => clearInterval(timer);
+  }, [value]);
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <LinearProgressWithLabel value={progress} />
-    </Box>
+    <div className="w-full">
+      <ProgressWithLabel value={value ?? progress} />
+    </div>
   );
 }

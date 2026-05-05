@@ -1,34 +1,31 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
+import { Droplet, GlassWater } from 'lucide-react';
 import {
-  Box,
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  Typography,
-} from '@mui/material';
-import useSensorData from '../../hooks/useSensorData';
-import { calibrateTofEmpty, calibrateTofFull } from '../client/TofClient';
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import useSensorData from '@/hooks/useSensorData';
+import { calibrateTofEmpty, calibrateTofFull } from '@/components/client/TofClient';
 
 export default function TofCalibrationCard() {
   const sensorData = useSensorData();
   const [busy, setBusy] = useState<'full' | 'empty' | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [lastAction, setLastAction] = useState<string | null>(null);
 
   async function handleCalibrate(target: 'full' | 'empty') {
-    setError(null);
     setBusy(target);
+    const capturedRaw = sensorData.tofRangeRaw;
     try {
       if (target === 'full') {
         await calibrateTofFull();
-        setLastAction(`Captured FULL @ ${sensorData.tofRangeRaw}mm`);
+        toast.success(`Tank FULL captured @ ${capturedRaw}mm`);
       } else {
         await calibrateTofEmpty();
-        setLastAction(`Captured EMPTY @ ${sensorData.tofRangeRaw}mm`);
+        toast.success(`Tank EMPTY captured @ ${capturedRaw}mm`);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Calibration request failed');
+      const msg = e instanceof Error ? e.message : 'Calibration request failed';
+      toast.error(msg);
     } finally {
       setBusy(null);
     }
@@ -38,61 +35,50 @@ export default function TofCalibrationCard() {
   const haveSignal = raw > 0;
 
   return (
-    <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <CardContent sx={{ flex: '1 0 auto' }}>
-        <Typography gutterBottom variant="h5" component="div">
-          Water-Tank ToF Calibration
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Fill the tank, capture FULL. Empty it (or pull the sensor off the
-          lid so it sees the bottom), capture EMPTY. The percentage is
-          linearly interpolated between those two raw mm readings and
-          persists across reboots.
-        </Typography>
+    <Card className="h-full flex flex-col">
+      <CardHeader>
+        <CardTitle className="text-xl">Water-Tank ToF Calibration</CardTitle>
+        <CardDescription>
+          Fill the tank and capture FULL. Drop the tank to your &ldquo;refill now&rdquo;
+          threshold and capture EMPTY. The percentage interpolates linearly
+          between those two raw mm readings and persists across reboots.
+        </CardDescription>
+      </CardHeader>
 
-        <Box sx={{
-          display: 'flex', alignItems: 'baseline', gap: 1, mb: 1,
-        }}
-        >
-          <Typography variant="overline">Live raw range:</Typography>
-          <Typography variant="h6" sx={{ fontFamily: 'monospace' }}>
+      <CardContent className="flex-1">
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            Live raw range:
+          </span>
+          <span className="font-mono text-lg font-semibold">
             {haveSignal ? `${raw} mm` : '— no signal —'}
-          </Typography>
-        </Box>
-        <Typography variant="caption" color="text.secondary">
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
           Current tank level reads {sensorData.waterLvl}%.
-        </Typography>
-
-        {lastAction && (
-          <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
-            {lastAction}
-          </Typography>
-        )}
-        {error && (
-          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-            {error}
-          </Typography>
-        )}
+        </p>
       </CardContent>
-      <CardActions>
+
+      <CardFooter>
         <Button
-          variant="outlined"
-          size="small"
+          variant="outline"
+          size="sm"
           disabled={!haveSignal || busy !== null}
           onClick={() => handleCalibrate('full')}
         >
+          <Droplet />
           {busy === 'full' ? 'Capturing…' : 'Set FULL'}
         </Button>
         <Button
-          variant="outlined"
-          size="small"
-          color="secondary"
+          variant="outline"
+          size="sm"
           disabled={!haveSignal || busy !== null}
           onClick={() => handleCalibrate('empty')}
         >
+          <GlassWater />
           {busy === 'empty' ? 'Capturing…' : 'Set EMPTY'}
         </Button>
-      </CardActions>
+      </CardFooter>
     </Card>
   );
 }

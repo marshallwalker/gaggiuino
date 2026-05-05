@@ -1,8 +1,8 @@
-import {
-  Button,
-  Card, CardActions, CardContent, Typography,
-} from '@mui/material';
 import React, { useEffect, useState } from 'react';
+import {
+  Card, CardContent, CardFooter, CardHeader, CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   disconnectFromWifi, getWifiStatus, WifiStatus as WifiStatusData,
 } from '../client/WifiClient';
@@ -15,9 +15,7 @@ export default function WifiSettingsCard() {
   const [wifiStatusLoading, setWifiStatusLoading] = useState(true);
   const [wifiDrawerOpen, setWiFiDrawerOpen] = useState(false);
 
-  function isConnected(): boolean {
-    return !!wifiStatus && wifiStatus.status === 'connected';
-  }
+  const isConnected = !!wifiStatus && wifiStatus.status === 'connected';
 
   async function loadWiFiStatus() {
     try {
@@ -41,22 +39,28 @@ export default function WifiSettingsCard() {
   }, []);
 
   return (
-    <div style={{ height: '100%' }}>
-      <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <CardContent sx={{ flex: '1 0 auto' }}>
-          <Typography gutterBottom variant="h5" component="div">
-            WiFi Status
-          </Typography>
+    <>
+      <Card className="h-full flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-xl">WiFi Status</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1">
           {wifiStatusLoading ? <Loader /> : <WifiStatus status={wifiStatus} />}
         </CardContent>
-        <CardActions>
-          {isConnected() && <Button variant="outlined" size="small" color="secondary" onClick={() => disconnect()}>Disconnect</Button>}
-          {isConnected() && <Button variant="outlined" size="small" color="secondary" onClick={() => setWiFiDrawerOpen(true)}>Change</Button>}
-          {!isConnected() && <Button variant="outlined" size="small" onClick={() => setWiFiDrawerOpen(true)}>Connect</Button>}
-          <Button variant="outlined" size="small" color="secondary" onClick={() => loadWiFiStatus()}>Refresh</Button>
-        </CardActions>
+        <CardFooter>
+          {isConnected && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => disconnect()}>Disconnect</Button>
+              <Button variant="outline" size="sm" onClick={() => setWiFiDrawerOpen(true)}>Change</Button>
+            </>
+          )}
+          {!isConnected && (
+            <Button variant="outline" size="sm" onClick={() => setWiFiDrawerOpen(true)}>Connect</Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => loadWiFiStatus()}>Refresh</Button>
+        </CardFooter>
       </Card>
       <AvailableNetworksDrawer open={wifiDrawerOpen} onOpenChanged={setWiFiDrawerOpen} onConnected={loadWiFiStatus} />
-    </div>
+    </>
   );
 }

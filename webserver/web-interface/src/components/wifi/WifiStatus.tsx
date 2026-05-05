@@ -1,7 +1,5 @@
 import React from 'react';
-import SignalWifi3BarIcon from '@mui/icons-material/SignalWifi3Bar';
-import SignalWifiOffIcon from '@mui/icons-material/SignalWifiOff';
-import { Stack, Typography } from '@mui/material';
+import { Wifi, WifiOff } from 'lucide-react';
 import type { WifiStatus as WifiStatusData } from '../client/WifiClient';
 
 interface WifiStatusProps {
@@ -9,21 +7,20 @@ interface WifiStatusProps {
 }
 
 export default function WifiStatus({ status = null }: WifiStatusProps) {
-  function isConnected(): boolean {
-    return !!status && status.status === 'connected';
-  }
+  const connected = !!status && status.status === 'connected';
 
-  return isConnected() && status
-    ? (
-      <Stack spacing={1} direction="row" alignItems="center">
-        <SignalWifi3BarIcon color="success" />
-        <Typography>{`${status.ssid} (${status.ip})`}</Typography>
-      </Stack>
-    )
-    : (
-      <Stack spacing={1} direction="row" alignItems="center">
-        <SignalWifiOffIcon />
-        <Typography>Not connected</Typography>
-      </Stack>
+  if (connected && status) {
+    return (
+      <div className="flex items-center gap-2">
+        <Wifi className="h-4 w-4 text-[hsl(var(--success))]" />
+        <span>{`${status.ssid} (${status.ip})`}</span>
+      </div>
     );
+  }
+  return (
+    <div className="flex items-center gap-2 text-muted-foreground">
+      <WifiOff className="h-4 w-4" />
+      <span>Not connected</span>
+    </div>
+  );
 }

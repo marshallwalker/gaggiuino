@@ -1,35 +1,35 @@
 import React, { useState } from 'react';
-import SignalWifi3BarIcon from '@mui/icons-material/SignalWifi3Bar';
+import { Wifi } from 'lucide-react';
 import {
-  Accordion, AccordionSummary, Alert, Button, TextField, Typography, AccordionDetails, Stack,
-} from '@mui/material';
+  AccordionContent, AccordionItem, AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { connectToWifi, WifiNetwork } from '../../client/WifiClient';
 import Loader from '../../loader/Loader';
 
 interface AvailableNetworkProps {
   network: WifiNetwork;
-  onClick?: () => void;
-  expanded?: boolean;
   onConnected?: (network: WifiNetwork) => void;
 }
 
 export default function AvailableNetwork({
   network,
-  onClick = () => {},
-  expanded = false,
   onConnected = () => {},
 }: AvailableNetworkProps) {
   const [password, setPassword] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
 
-  async function handleSubmit() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setConnecting(true);
     setConnectionError(false);
     try {
       await connectToWifi({ ssid: network.ssid, pass: password });
       onConnected(network);
-    } catch (e) {
+    } catch (err) {
       setConnectionError(true);
     } finally {
       setConnecting(false);
@@ -37,38 +37,35 @@ export default function AvailableNetwork({
   }
 
   return (
-    <Accordion expanded={expanded}>
-      <AccordionSummary
-        onClick={onClick}
-        aria-controls="panel1a-content"
-        id="panel1a-header"
-      >
-        <Stack direction="row" spacing={1}>
-          <SignalWifi3BarIcon />
-          <Typography>{network.ssid}</Typography>
-        </Stack>
-      </AccordionSummary>
-      <AccordionDetails>
-        {connectionError && <Alert severity="error">Failed to connect to WiFi</Alert>}
-        <form>
-          <Stack spacing={1} direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            <TextField
-              id={`pwd-${network.ssid}`}
-              size="small"
-              type="password"
-              label="Password"
-              variant="outlined"
-              autoComplete="on"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-            <Button type="submit" size="large" variant="outlined" onClick={() => handleSubmit()} disabled={connecting}>
-              {connecting && <Loader />}
-              Connect
-            </Button>
-          </Stack>
+    <AccordionItem value={network.ssid}>
+      <AccordionTrigger>
+        <div className="flex items-center gap-2">
+          <Wifi className="h-4 w-4" />
+          <span>{network.ssid}</span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent>
+        {connectionError && (
+          <Alert variant="destructive" className="mb-2">
+            <AlertDescription>Failed to connect to WiFi</AlertDescription>
+          </Alert>
+        )}
+        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <Input
+            id={`pwd-${network.ssid}`}
+            type="password"
+            placeholder="Password"
+            autoComplete="on"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="sm:flex-1"
+          />
+          <Button type="submit" variant="outline" disabled={connecting}>
+            {connecting && <Loader />}
+            Connect
+          </Button>
         </form>
-      </AccordionDetails>
-    </Accordion>
+      </AccordionContent>
+    </AccordionItem>
   );
 }

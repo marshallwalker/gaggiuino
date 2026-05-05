@@ -6,6 +6,7 @@ import {
   Route,
   Outlet,
 } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import Home from './pages/home/Home';
 import Profiles from './pages/home/Profiles';
 import Settings from './pages/home/Settings';
@@ -17,6 +18,7 @@ function Layout() {
     <ThemeWrapper>
       <MainAppBar />
       <Outlet />
+      <Toaster position="bottom-right" richColors closeButton />
     </ThemeWrapper>
   );
 }

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
-  Box, FormControl, FormControlLabel, InputLabel, MenuItem, Paper,
-  Select, SelectChangeEvent, Stack, Switch, Typography, useTheme,
-} from '@mui/material';
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   getLogLevel, LOG_LEVEL_LABELS, LOG_LEVEL_ORDER, LogLevel,
-} from '../../models/api';
-import useLogStream from '../../hooks/useLogStream';
+} from '@/models/api';
+import useLogStream from '@/hooks/useLogStream';
 
 interface LogContainerProps {
   maxLines?: number;
@@ -20,7 +22,6 @@ const LEVEL_COLORS: Record<LogLevel, string> = {
 };
 
 export default function LogContainer({ maxLines = 200 }: LogContainerProps) {
-  const theme = useTheme();
   const logLines = useLogStream(maxLines);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [followLogs, setFollowLogs] = useState(false);
@@ -37,53 +38,43 @@ export default function LogContainer({ maxLines = 200 }: LogContainerProps) {
     }
   }, [filteredLogs, followLogs]);
 
-  const onChangeFollow = (_event: React.ChangeEvent<HTMLInputElement>, newValue: boolean) => {
-    setFollowLogs(newValue);
-  };
-
-  const onChangeLevel = (event: SelectChangeEvent<LogLevel>) => {
-    setMinLevel(event.target.value as LogLevel);
-  };
-
   return (
-    <Paper elevation={3} sx={{ p: theme.spacing(2) }}>
-      <Stack direction="row" alignItems="center" spacing={2}>
-        <Typography sx={{ flexGrow: 1 }} gutterBottom variant="h5">Logs</Typography>
-        <FormControl size="small" sx={{ minWidth: 130 }}>
-          <InputLabel id="log-level-label">Min level</InputLabel>
-          <Select
-            labelId="log-level-label"
-            label="Min level"
-            value={minLevel}
-            onChange={onChangeLevel}
-          >
-            {(Object.keys(LOG_LEVEL_LABELS) as LogLevel[]).map((level) => (
-              <MenuItem key={level} value={level}>{LOG_LEVEL_LABELS[level]}</MenuItem>
-            ))}
+    <Card className="p-4 shadow-md">
+      <div className="flex items-center gap-3 mb-2">
+        <h2 className="flex-1 text-xl font-semibold">Logs</h2>
+        <div className="w-[140px]">
+          <Select value={minLevel} onValueChange={(v) => setMinLevel(v as LogLevel)}>
+            <SelectTrigger className="h-9" aria-label="Min log level">
+              <SelectValue placeholder="Min level" />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(LOG_LEVEL_LABELS) as LogLevel[]).map((level) => (
+                <SelectItem key={level} value={level}>{LOG_LEVEL_LABELS[level]}</SelectItem>
+              ))}
+            </SelectContent>
           </Select>
-        </FormControl>
-        <FormControlLabel
-          control={<Switch checked={followLogs} onChange={onChangeFollow} />}
-          label="Follow"
-          labelPlacement="start"
-        />
-      </Stack>
-      <Box sx={{ overflow: 'auto', height: '300px', fontFamily: 'monospace' }}>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="log-follow" className="cursor-pointer">Follow</Label>
+          <Switch id="log-follow" checked={followLogs} onCheckedChange={setFollowLogs} />
+        </div>
+      </div>
+      <div className="overflow-auto h-[300px] font-mono text-sm">
         {filteredLogs.map((line, index) => {
           const level = getLogLevel(line.log);
           return (
-            <Typography
+            <div
               // eslint-disable-next-line react/no-array-index-key
               key={index}
-              variant="body2"
-              sx={{ color: LEVEL_COLORS[level], whiteSpace: 'pre-wrap' }}
+              className="whitespace-pre-wrap"
+              style={{ color: LEVEL_COLORS[level] }}
             >
               {`[${line.source}] ${line.log}`}
-            </Typography>
+            </div>
           );
         })}
         <div ref={bottomRef} />
-      </Box>
-    </Paper>
+      </div>
+    </Card>
   );
 }

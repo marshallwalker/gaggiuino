@@ -1,5 +1,7 @@
 import { CssBaseline, ThemeProvider, useMediaQuery } from '@mui/material';
-import React, { useMemo, useState, ReactNode } from 'react';
+import React, {
+  useEffect, useMemo, useState, ReactNode,
+} from 'react';
 import getAppTheme, { ThemeMode } from './AppTheme';
 import { ThemeModeContext } from './ThemeModeToggle';
 
@@ -19,6 +21,18 @@ export default function ThemeWrapper({ children }: ThemeWrapperProps) {
     localStorage.setItem(SAVED_THEME_MODE_KEY, newMode);
     setThemeMode(newMode);
   };
+
+  // Toggle the `dark` class on <html> so Tailwind/shadcn dark variants
+  // resolve correctly. Pages already migrated to shadcn pick this up;
+  // pages still on MUI continue to use the ThemeProvider below.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (themeMode === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [themeMode]);
 
   const modeContext = useMemo(() => ({ themeMode, changeThemeMode }), [themeMode]);
   const theme = useMemo(() => getAppTheme(themeMode), [themeMode]);

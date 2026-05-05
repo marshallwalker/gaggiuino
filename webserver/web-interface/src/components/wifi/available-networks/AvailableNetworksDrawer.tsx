@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { RefreshCw } from 'lucide-react';
 import {
-  Box, Button, Drawer, Stack, Typography, useTheme,
-} from '@mui/material';
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 import { refrehNetworks } from '../../client/WifiClient';
 import Loader from '../../loader/Loader';
 import AvailableNetworks from './AvailableNetworks';
@@ -16,7 +17,6 @@ interface AvailableNetworksDrawerProps {
 export default function AvailableNetworksDrawer({
   open, onOpenChanged, onConnected = () => {},
 }: AvailableNetworksDrawerProps) {
-  const theme = useTheme();
   const [networksRefreshing, setNetworksRefreshing] = useState(false);
   const [wifiDrawerRefreshKey, setWifiDrawerRefreshKey] = useState(0);
 
@@ -30,31 +30,18 @@ export default function AvailableNetworksDrawer({
     }
   }
 
-  const toggleDrawer = (isOpen: boolean) => (event: React.KeyboardEvent | React.MouseEvent) => {
-    if (event.type === 'keydown'
-      && ((event as React.KeyboardEvent).key === 'Tab'
-       || (event as React.KeyboardEvent).key === 'Shift')) {
-      return;
-    }
-    onOpenChanged(isOpen);
-  };
-
-  return open ? (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={toggleDrawer(false)}
-    >
-      <Stack spacing={1} direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="h5" sx={{ m: theme.spacing(2) }}>
-          Available networks
-        </Typography>
-        <Typography variant="h5" sx={{ m: theme.spacing(2) }}>
-          <Button onClick={refreshNetworksAction}><RefreshIcon /></Button>
-        </Typography>
-      </Stack>
-      {networksRefreshing && <Box display="flex" justifyContent="center"><Loader /></Box>}
-      {!networksRefreshing && <AvailableNetworks key={wifiDrawerRefreshKey} onConnected={onConnected} />}
-    </Drawer>
-  ) : <span />;
+  return (
+    <Sheet open={open} onOpenChange={onOpenChanged}>
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader className="flex-row items-center justify-between space-y-0">
+          <SheetTitle className="text-xl">Available networks</SheetTitle>
+          <Button variant="ghost" size="icon" onClick={refreshNetworksAction} aria-label="Refresh">
+            <RefreshCw />
+          </Button>
+        </SheetHeader>
+        {networksRefreshing && <div className="flex justify-center py-4"><Loader /></div>}
+        {!networksRefreshing && <AvailableNetworks key={wifiDrawerRefreshKey} onConnected={onConnected} />}
+      </SheetContent>
+    </Sheet>
+  );
 }

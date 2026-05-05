@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Box } from '@mui/material';
+import { Accordion } from '@/components/ui/accordion';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getAvailableNetworks, WifiNetwork } from '../../client/WifiClient';
 import Loader from '../../loader/Loader';
 import AvailableNetwork from './AvailableNetwork';
@@ -12,7 +13,7 @@ export default function AvailableNetworks({ onConnected = () => {} }: AvailableN
   const [networks, setNetworks] = useState<WifiNetwork[]>([]);
   const [loading, setLoading] = useState(false);
   const [networksError, setNetworksError] = useState(false);
-  const [expandedNetworkId, setExpandedNetworkId] = useState<string | null>(null);
+  const [expandedNetworkId, setExpandedNetworkId] = useState<string>('');
 
   useEffect(() => {
     const loadNetworks = async () => {
@@ -32,27 +33,33 @@ export default function AvailableNetworks({ onConnected = () => {} }: AvailableN
   }, []);
 
   if (networksError) {
-    return <Alert severity="error">Failed to load available networks</Alert>;
+    return (
+      <Alert variant="destructive" className="mt-4">
+        <AlertDescription>Failed to load available networks</AlertDescription>
+      </Alert>
+    );
   }
 
-  return loading
-    ? <Box display="flex" justifyContent="center"><Loader /></Box>
-    : (
-      <div>
-        {networks.map((network) => (
-          <AvailableNetwork
-            key={network.ssid}
-            network={network}
-            onClick={() => (network.ssid === expandedNetworkId
-              ? setExpandedNetworkId(null)
-              : setExpandedNetworkId(network.ssid))}
-            expanded={expandedNetworkId === network.ssid}
-            onConnected={() => {
-              setExpandedNetworkId(null);
-              onConnected();
-            }}
-          />
-        ))}
-      </div>
-    );
+  if (loading) return <div className="flex justify-center py-4"><Loader /></div>;
+
+  return (
+    <Accordion
+      type="single"
+      collapsible
+      value={expandedNetworkId}
+      onValueChange={setExpandedNetworkId}
+      className="mt-4"
+    >
+      {networks.map((network) => (
+        <AvailableNetwork
+          key={network.ssid}
+          network={network}
+          onConnected={() => {
+            setExpandedNetworkId('');
+            onConnected();
+          }}
+        />
+      ))}
+    </Accordion>
+  );
 }

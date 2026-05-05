@@ -106,9 +106,10 @@ export const defaultShotSnapshot: ShotData = {
   targetPressure: 0,
 };
 
-export const apiHost: string = import.meta.env.DEV
-  ? '192.168.4.1'
-  : window.location.host;
+// In dev this is `localhost:3000`; vite.config.ts proxies /api and /ws to
+// the real ESP. In prod the React bundle is served from the ESP itself
+// so window.location.host already points at the device.
+export const apiHost: string = window.location.host;
 
 export function formatTimeInShot(timeInShot: number): string {
   const milliseconds = timeInShot % 1000;
