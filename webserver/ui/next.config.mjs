@@ -4,10 +4,10 @@ const nextConfig = {
   // Required for serving from LittleFS on the ESP.
   output: 'export',
 
-  // Build output goes straight into ../webroot so PlatformIO's uploadfs target
-  // packs it into the LittleFS image without an extra copy step. Mirrors the
-  // legacy web-interface/ Vite config's outDir.
-  distDir: '../webroot',
+  // Build into a local dir, then the "build" script copies the output to
+  // ../webroot so PlatformIO's uploadfs target packs it into the LittleFS
+  // image. (Turbopack forbids distDir outside the project root.)
+  distDir: 'out',
 
   // Export each route as a folder/index.html instead of route.html. Lets the
   // ESP static-files handler resolve "/settings/" to "settings/index.html"
