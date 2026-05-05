@@ -6,7 +6,7 @@ src/build
 webserver/src/.theia/
 webserver/src/build
 webserver/src/stack/secrets.h
-webserver/data
+webserver/webroot
 gaggiuino.ino.cpp
 extra_defines.ini
 *.code-workspace

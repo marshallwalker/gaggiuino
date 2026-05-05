@@ -34,7 +34,7 @@ export default defineConfig({
   },
   plugins: [react(), viteTsconfigPaths(), svgrPlugin()],
   build: {
-    outDir: '../data',
+    outDir: '../webroot',
     emptyOutDir: true,
   },
 });
