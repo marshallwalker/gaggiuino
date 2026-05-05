@@ -35,10 +35,43 @@ export interface ScalesData {
   factor2: number;
 }
 
+export interface ShotData {
+  timeInShot: number; // ms since brew started
+  pressure: number;
+  pumpFlow: number;
+  weightFlow: number;
+  temperature: number;
+  shotWeight: number;
+  waterPumped: number;
+  targetTemperature: number;
+  targetPumpFlow: number;
+  targetPressure: number;
+}
+
+export interface ProfileSummary {
+  index: number; // 1-indexed
+  name: string;
+}
+
+export interface LogRecord {
+  source: string;
+  log: string;
+}
+
 export interface WsEnvelope<T> {
   action: string;
   data: T;
 }
+
+// Discriminated union of every WS message the ESP webserver can emit. The
+// `action` literal narrows `data` to the right type — no runtime casts in
+// consumers, just `if (msg.action === MSG_X)` and TS knows the rest.
+export type WsMessage =
+  | { action: typeof MSG_SENSOR_DATA;   data: SensorData }
+  | { action: typeof MSG_SHOT_DATA;     data: ShotData }
+  | { action: typeof MSG_SCALES_DATA;   data: ScalesData }
+  | { action: typeof MSG_PROFILE_NAMES; data: ProfileSummary[] }
+  | { action: typeof MSG_LOG;           data: LogRecord };
 
 // Where the ESP lives. In production the static bundle is served from the ESP
 // itself, so window.location.host is correct. In `next dev` (localhost:3000)

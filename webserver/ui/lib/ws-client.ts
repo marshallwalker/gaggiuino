@@ -3,9 +3,9 @@
 // instead of each opening their own. Mirrors the `share: true` behavior of
 // the legacy app's react-use-websocket without pulling that dependency.
 
-import { getWsUrl, type WsEnvelope } from "@/lib/api";
+import { getWsUrl, type WsMessage } from "@/lib/api";
 
-type Listener = (msg: WsEnvelope<unknown>) => void;
+type Listener = (msg: WsMessage) => void;
 
 const listeners = new Set<Listener>();
 let ws: WebSocket | null = null;
@@ -27,7 +27,11 @@ function connect() {
   ws.onmessage = (event) => {
     if (typeof event.data !== "string") return;
     try {
-      const parsed = JSON.parse(event.data) as WsEnvelope<unknown>;
+      // We trust the server to emit one of the known WsMessage variants.
+      // If a future server adds a new action type, listeners' discriminator
+      // checks (msg.action === MSG_X) just won't match, so it's safe — TS
+      // can't validate the parse but the runtime narrows out unknowns.
+      const parsed = JSON.parse(event.data) as WsMessage;
       listeners.forEach((listener) => listener(parsed));
     } catch {
       // Malformed frames just get dropped — the ESP shouldn't emit any.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MSG_SCALES_DATA, type ScalesData, type WsEnvelope } from "@/lib/api";
+import { MSG_SCALES_DATA, type ScalesData } from "@/lib/api";
 import { subscribe } from "@/lib/ws-client";
 
 const DEFAULT_SCALES_DATA: ScalesData = {
@@ -22,9 +22,9 @@ export function useScalesData(): ScalesData {
   const [data, setData] = useState<ScalesData>(DEFAULT_SCALES_DATA);
 
   useEffect(() => {
-    return subscribe((msg: WsEnvelope<unknown>) => {
+    return subscribe((msg) => {
       if (msg.action === MSG_SCALES_DATA) {
-        setData(msg.data as ScalesData);
+        setData(msg.data);
       }
     });
   }, []);

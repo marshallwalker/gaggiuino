@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MSG_SENSOR_DATA, type SensorData, type WsEnvelope } from "@/lib/api";
+import { MSG_SENSOR_DATA, type SensorData } from "@/lib/api";
 import { subscribe } from "@/lib/ws-client";
 
 const DEFAULT_SENSOR_DATA: SensorData = {
@@ -32,9 +32,9 @@ export function useSensorData(): SensorData {
   const [data, setData] = useState<SensorData>(DEFAULT_SENSOR_DATA);
 
   useEffect(() => {
-    return subscribe((msg: WsEnvelope<unknown>) => {
+    return subscribe((msg) => {
       if (msg.action === MSG_SENSOR_DATA) {
-        setData(msg.data as SensorData);
+        setData(msg.data);
       }
     });
   }, []);

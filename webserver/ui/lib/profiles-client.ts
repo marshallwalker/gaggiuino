@@ -4,12 +4,12 @@
 // response — first call after boot can take a moment, subsequent calls
 // hit the ESP-side cache and are instant.
 
-import { getApiBase } from "@/lib/api";
+import { getApiBase, type ProfileSummary } from "@/lib/api";
 
-export interface ProfileSummary {
-  index: number;  // 1-indexed
-  name: string;
-}
+// Re-exported so existing imports from "@/lib/profiles-client" keep working
+// without a sweep — ProfileSummary itself lives in api.ts now since it's
+// also part of the WS message union.
+export type { ProfileSummary };
 
 export interface ProfileData {
   index: number;

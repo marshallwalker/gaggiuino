@@ -29,7 +29,7 @@ export function BrewDashboard() {
       <ShotGraph />
 
       {/* Quick stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-card border border-border rounded-lg p-4 text-center">
           <p className="text-xs text-muted-foreground">Today&apos;s Shots</p>
           <p className="text-2xl font-bold text-foreground mt-1">7</p>
@@ -46,7 +46,7 @@ export function BrewDashboard() {
           <p className="text-xs text-muted-foreground">Total Coffee</p>
           <p className="text-2xl font-bold text-foreground mt-1">126g</p>
         </div>
-      </div>
+      </div> */}
     </div>
   )
 }
