@@ -196,6 +196,18 @@ void McuComms::requestProfileNamesReceived() const {
   }
 }
 
+void McuComms::requestProfileDataReceived(uint8_t index) const {
+  if (requestProfileDataCallback) {
+    requestProfileDataCallback(index);
+  }
+}
+
+void McuComms::profileDataSnapshotReceived(ProfileDataSnapshot& snapshot) const {
+  if (profileDataSnapshotCallback) {
+    profileDataSnapshotCallback(snapshot);
+  }
+}
+
 void McuComms::responseReceived(McuCommsResponse& response) const {
   if (responseReceivedCallback) {
     responseReceivedCallback(response);
@@ -322,6 +334,14 @@ void McuComms::setRequestProfileNamesCallback(RequestProfileNamesCallback callba
   requestProfileNamesCallback = callback;
 }
 
+void McuComms::setRequestProfileDataCallback(RequestProfileDataCallback callback) {
+  requestProfileDataCallback = callback;
+}
+
+void McuComms::setProfileDataSnapshotReceivedCallback(ProfileDataSnapshotReceivedCallback callback) {
+  profileDataSnapshotCallback = callback;
+}
+
 void McuComms::setResponseReceivedCallback(ResponseReceivedCallback callback) {
   responseReceivedCallback = callback;
 }
@@ -418,6 +438,18 @@ void McuComms::sendRequestProfileNames() {
   if (!isConnected()) return;
   uint16_t messageSize = transfer.txObj(static_cast<uint8_t>(McuCommsMessageType::MCUC_REQ_PROFILE_NAMES));
   transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_REQ_PROFILE_NAMES));
+}
+
+void McuComms::sendRequestProfileData(uint8_t index) {
+  if (!isConnected()) return;
+  uint16_t messageSize = transfer.txObj(index);
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_REQ_PROFILE_DATA));
+}
+
+void McuComms::sendProfileDataSnapshot(const ProfileDataSnapshot& snapshot) {
+  if (!isConnected()) return;
+  uint16_t messageSize = transfer.txObj(snapshot);
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_DATA_PROFILE_DATA));
 }
 
 void McuComms::readDataAndTick() {
@@ -530,6 +562,18 @@ void McuComms::readDataAndTick() {
     } case McuCommsMessageType::MCUC_REQ_PROFILE_NAMES: {
       log("Received a request-profile-names command\n");
       requestProfileNamesReceived();
+      break;
+    } case McuCommsMessageType::MCUC_REQ_PROFILE_DATA: {
+      log("Received a request-profile-data command\n");
+      uint8_t index = 0;
+      transfer.rxObj(index);
+      requestProfileDataReceived(index);
+      break;
+    } case McuCommsMessageType::MCUC_DATA_PROFILE_DATA: {
+      log("Received a profile-data snapshot\n");
+      ProfileDataSnapshot snapshot = {};
+      transfer.rxObj(snapshot);
+      profileDataSnapshotReceived(snapshot);
       break;
     }
     default:

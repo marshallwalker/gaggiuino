@@ -31,6 +31,7 @@ void espCommsInit() {
   McuCommsSingleton::getInstance().setScalesTareCommandCallback(onScalesTareReceived);
   McuCommsSingleton::getInstance().setScalesSetFactorsCommandCallback(onScalesSetFactorsReceived);
   McuCommsSingleton::getInstance().setRequestProfileNamesCallback(onRequestProfileNamesReceived);
+  McuCommsSingleton::getInstance().setRequestProfileDataCallback(onRequestProfileDataReceived);
 }
 
 void espCommsReadData() {
@@ -86,6 +87,28 @@ void espCommsSendProfileNames(const eepromValues_t& cfg) {
     snapshot.names[i][PROFILE_NAMES_LENGTH - 1] = '\0';
   }
   McuCommsSingleton::getInstance().sendProfileNamesSnapshot(snapshot);
+}
+
+void espCommsSendProfileData(const eepromValues_t& cfg, uint8_t index) {
+  // index is 1-indexed from the ESP. Bail with index=0 to signal "lookup
+  // failed" so the caller knows not to cache the response.
+  ProfileDataSnapshot snapshot = {};
+  if (index < 1 || index > PROFILE_NAMES_COUNT) {
+    snapshot.index = 0;
+    McuCommsSingleton::getInstance().sendProfileDataSnapshot(snapshot);
+    return;
+  }
+  const auto& p = cfg.profiles[index - 1];
+  snapshot.index = index;
+  strncpy(snapshot.name, p.name, PROFILE_DATA_NAME_LENGTH - 1);
+  snapshot.name[PROFILE_DATA_NAME_LENGTH - 1] = '\0';
+  snapshot.preinfusionSec = p.preinfusionSec;
+  snapshot.preinfusionBar = p.preinfusionBar;
+  snapshot.setpoint = p.setpoint;
+  snapshot.shotDose = p.shotDose;
+  snapshot.shotStopOnCustomWeight = p.shotStopOnCustomWeight;
+  snapshot.stopOnWeightState = p.stopOnWeightState;
+  McuCommsSingleton::getInstance().sendProfileDataSnapshot(snapshot);
 }
 
 void espCommsSendLog(const char* message) {

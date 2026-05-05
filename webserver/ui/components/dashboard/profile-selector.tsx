@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Layers, ChevronRight, Check } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Layers, Check } from "lucide-react"
+import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Select,
@@ -10,127 +11,173 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-const profiles = [
-  {
-    id: "londinium",
-    name: "Londinium",
-    description: "Long preinfusion, lever-style pressure profile",
-    preinfusion: "8-10s",
-    pressure: "6-9 bar",
-    temp: "93°C",
-  },
-  {
-    id: "la-marzocco",
-    name: "La Marzocco",
-    description: "Classic Italian flat 9 bar profile",
-    preinfusion: "3-5s",
-    pressure: "9 bar",
-    temp: "93°C",
-  },
-  {
-    id: "slayer",
-    name: "Slayer",
-    description: "Extended preinfusion with slow ramp",
-    preinfusion: "15-20s",
-    pressure: "3-9 bar",
-    temp: "92°C",
-  },
-  {
-    id: "blooming",
-    name: "Blooming",
-    description: "Turbo-style with bloom phase",
-    preinfusion: "30s bloom",
-    pressure: "2-6 bar",
-    temp: "90°C",
-  },
-  {
-    id: "classic",
-    name: "Classic 9 Bar",
-    description: "Traditional flat pressure profile",
-    preinfusion: "2-3s",
-    pressure: "9 bar",
-    temp: "93°C",
-  },
-  {
-    id: "custom",
-    name: "Custom",
-    description: "Your custom pressure profile",
-    preinfusion: "Variable",
-    pressure: "Variable",
-    temp: "Variable",
-  },
-]
+import { useSensorData } from "@/hooks/use-sensor-data"
+import {
+  getProfile,
+  getProfileNames,
+  setActiveProfile,
+  type ProfileData,
+  type ProfileSummary,
+} from "@/lib/profiles-client"
 
 export function ProfileSelector() {
-  const [selectedProfile, setSelectedProfile] = useState("londinium")
+  const sensor = useSensorData()
+  const [names, setNames] = useState<ProfileSummary[]>([])
+  const [namesLoading, setNamesLoading] = useState(true)
+  const [activeData, setActiveData] = useState<ProfileData | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [switching, setSwitching] = useState(false)
 
-  const activeProfile = profiles.find((p) => p.id === selectedProfile)
+  // The active index lives in the sensor stream (1-indexed). We render the
+  // detail card based on this rather than a local "selectedProfile" state so
+  // out-of-band switches (Nextion tap, another browser tab) reflect here too.
+  const activeIndex = sensor.activeProfile
+
+  useEffect(() => {
+    let cancelled = false
+    getProfileNames()
+      .then((list) => {
+        if (!cancelled) setNames(list)
+      })
+      .catch((e) => {
+        toast.error(e instanceof Error ? e.message : "Failed to load profiles")
+      })
+      .finally(() => {
+        if (!cancelled) setNamesLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Refetch the active profile's detail whenever the active index changes.
+  // The ESP caches per-index, so subsequent re-selections of the same
+  // profile are instant.
+  useEffect(() => {
+    if (!activeIndex || activeIndex < 1 || activeIndex > 5) return
+    let cancelled = false
+    setDetailLoading(true)
+    getProfile(activeIndex)
+      .then((data) => {
+        if (!cancelled) setActiveData(data)
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setActiveData(null)
+          toast.error(e instanceof Error ? e.message : "Failed to load profile detail")
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeIndex])
+
+  async function handleSelect(value: string) {
+    const idx = parseInt(value, 10)
+    if (!Number.isFinite(idx) || idx === activeIndex) return
+    setSwitching(true)
+    try {
+      await setActiveProfile(idx)
+      // sensor.activeProfile catches up on the next WS frame; the useEffect
+      // above refetches detail when it does.
+      toast.success(`Switched to profile ${idx}`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Switch failed")
+    } finally {
+      setSwitching(false)
+    }
+  }
+
+  // Brew ratio: target weight ÷ dose. Only meaningful when the profile
+  // actually stops on weight; otherwise the target field is unused.
+  const ratio =
+    activeData && activeData.stopOnWeightState && activeData.shotDose > 0
+      ? (activeData.shotStopOnCustomWeight / activeData.shotDose).toFixed(1)
+      : null
 
   return (
     <Card className="bg-card border-border">
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-4">
           <Layers className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium text-foreground">Pressure Profile</span>
+          <span className="text-sm font-medium text-foreground">Brew Profile</span>
         </div>
 
-        <Select value={selectedProfile} onValueChange={setSelectedProfile}>
+        <Select
+          value={activeIndex ? String(activeIndex) : undefined}
+          onValueChange={handleSelect}
+          disabled={namesLoading || switching || names.length === 0}
+        >
           <SelectTrigger className="w-full bg-secondary border-border">
-            <SelectValue />
+            <SelectValue placeholder={namesLoading ? "Loading…" : "Select a profile"} />
           </SelectTrigger>
           <SelectContent>
-            {profiles.map((profile) => (
-              <SelectItem key={profile.id} value={profile.id}>
+            {names.map((p) => (
+              <SelectItem key={p.index} value={String(p.index)}>
                 <div className="flex items-center gap-2">
-                  {selectedProfile === profile.id && (
-                    <Check className="h-4 w-4 text-primary" />
-                  )}
-                  <span>{profile.name}</span>
+                  {p.index === activeIndex && <Check className="h-4 w-4 text-primary" />}
+                  <span>{p.name || `Profile ${p.index}`}</span>
                 </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {activeProfile && (
+        {activeData && !detailLoading && (
           <div className="mt-4 space-y-3">
-            <p className="text-xs text-muted-foreground">{activeProfile.description}</p>
-            
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="bg-secondary rounded-lg p-2">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                   Pre-infusion
                 </p>
                 <p className="text-sm font-medium text-foreground mt-0.5">
-                  {activeProfile.preinfusion}
+                  {activeData.preinfusionSec > 0
+                    ? `${activeData.preinfusionSec}s @ ${activeData.preinfusionBar.toFixed(1)} bar`
+                    : "Off"}
                 </p>
               </div>
               <div className="bg-secondary rounded-lg p-2">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  Pressure
-                </p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Temp</p>
                 <p className="text-sm font-medium text-foreground mt-0.5">
-                  {activeProfile.pressure}
+                  {activeData.setpoint}°C
                 </p>
               </div>
               <div className="bg-secondary rounded-lg p-2">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  Temp
-                </p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Dose</p>
                 <p className="text-sm font-medium text-foreground mt-0.5">
-                  {activeProfile.temp}
+                  {activeData.shotDose > 0 ? `${activeData.shotDose.toFixed(1)} g` : "—"}
                 </p>
               </div>
             </div>
 
-            {selectedProfile !== "custom" && (
-              <button className="w-full flex items-center justify-center gap-1 text-xs text-primary hover:underline mt-2">
-                Edit profile
-                <ChevronRight className="h-3 w-3" />
-              </button>
+            {activeData.stopOnWeightState && (
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="bg-secondary rounded-lg p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    Target Weight
+                  </p>
+                  <p className="text-sm font-medium text-foreground mt-0.5">
+                    {activeData.shotStopOnCustomWeight.toFixed(1)} g
+                  </p>
+                </div>
+                <div className="bg-secondary rounded-lg p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    Brew Ratio
+                  </p>
+                  <p className="text-sm font-medium text-foreground mt-0.5">
+                    {ratio ? `1 : ${ratio}` : "—"}
+                  </p>
+                </div>
+              </div>
             )}
           </div>
+        )}
+
+        {detailLoading && (
+          <p className="mt-4 text-xs text-muted-foreground text-center">Loading profile…</p>
         )}
       </CardContent>
     </Card>

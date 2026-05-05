@@ -16,6 +16,7 @@ void espCommsSendTareScalesCommand();
 void espCommsSendProfileNames(const eepromValues_t& cfg);
 void espCommsSendLog(const char* message);
 void espCommsSendScalesSnapshot(const ScalesSnapshot& snapshot, uint32_t frequency = 250);
+void espCommsSendProfileData(const eepromValues_t& cfg, uint8_t index);
 
 void onProfileReceived(Profile& profile);
 void onRemoteScalesWeightReceived(float weight);
@@ -25,5 +26,6 @@ void onCalibrateTofReceived(TofCalibrationTarget target);
 void onScalesTareReceived();
 void onScalesSetFactorsReceived(ScalesFactors factors);
 void onRequestProfileNamesReceived();
+void onRequestProfileDataReceived(uint8_t index);
 
 #endif

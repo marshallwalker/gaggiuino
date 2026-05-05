@@ -45,6 +45,9 @@ enum class McuCommsMessageType : uint8_t {
   MCUC_CMD_SCALES_SET_FACTORS = 19,// ESP -> STM: set + persist new calibration factors {f1, f2}
 
   MCUC_REQ_PROFILE_NAMES = 20,     // ESP -> STM: ask STM to push the current profile names (response arrives as MCUC_DATA_PROFILE_NAMES)
+
+  MCUC_REQ_PROFILE_DATA = 21,      // ESP -> STM: ask STM for one profile's basic settings (payload: 1-indexed uint8_t)
+  MCUC_DATA_PROFILE_DATA = 22,     // STM -> ESP: ProfileDataSnapshot for one profile
 };
 
 enum class TofCalibrationTarget : uint8_t {
@@ -69,6 +72,21 @@ struct ScalesSnapshot {
 struct ScalesFactors {
   float factor1;
   float factor2;
+};
+
+// Subset of the EEPROM profile_t exposed to the web UI for the profile-detail
+// card on the dashboard. Just the fields a user typically wants to see at a
+// glance — full phase / curve data stays internal to the STM.
+#define PROFILE_DATA_NAME_LENGTH 25
+struct ProfileDataSnapshot {
+  uint8_t  index;                  // 1-indexed; 0 means "not populated / lookup failed"
+  char     name[PROFILE_DATA_NAME_LENGTH];
+  uint16_t preinfusionSec;
+  float    preinfusionBar;
+  uint16_t setpoint;               // brew temp °C
+  float    shotDose;               // input dose in grams
+  float    shotStopOnCustomWeight; // target output weight when stopOnWeightState is true
+  bool     stopOnWeightState;
 };
 
 #define LOG_RECORD_LEN 128
@@ -110,6 +128,8 @@ private:
   using ScalesTareCommandCallback = std::function<void()>;
   using ScalesSetFactorsCommandCallback = std::function<void(ScalesFactors)>;
   using RequestProfileNamesCallback = std::function<void()>;
+  using RequestProfileDataCallback = std::function<void(uint8_t)>;
+  using ProfileDataSnapshotReceivedCallback = std::function<void(ProfileDataSnapshot&)>;
 
   uint32_t lastByteReceived = 0;
   uint32_t lastHeartbeatSent = 0;
@@ -130,6 +150,8 @@ private:
   ScalesTareCommandCallback scalesTareCommandCallback = nullptr;
   ScalesSetFactorsCommandCallback scalesSetFactorsCommandCallback = nullptr;
   RequestProfileNamesCallback requestProfileNamesCallback = nullptr;
+  RequestProfileDataCallback requestProfileDataCallback = nullptr;
+  ProfileDataSnapshotReceivedCallback profileDataSnapshotCallback = nullptr;
   Stream* debugPort = nullptr;
   size_t packetSize;
 
@@ -165,6 +187,8 @@ private:
   void scalesTareCommandReceived() const;
   void scalesSetFactorsCommandReceived(ScalesFactors factors) const;
   void requestProfileNamesReceived() const;
+  void requestProfileDataReceived(uint8_t index) const;
+  void profileDataSnapshotReceived(ProfileDataSnapshot& snapshot) const;
 
 public:
   void begin(Stream& serial, uint32_t waitConnectionMillis = 0, size_t packetSize = MAX_DATA_PER_PACKET_DEFAULT);
@@ -184,6 +208,8 @@ public:
   void setScalesTareCommandCallback(ScalesTareCommandCallback callback);
   void setScalesSetFactorsCommandCallback(ScalesSetFactorsCommandCallback callback);
   void setRequestProfileNamesCallback(RequestProfileNamesCallback callback);
+  void setRequestProfileDataCallback(RequestProfileDataCallback callback);
+  void setProfileDataSnapshotReceivedCallback(ProfileDataSnapshotReceivedCallback callback);
 
   void sendShotData(const ShotSnapshot& snapshot);
   void sendProfile(Profile& profile);
@@ -200,6 +226,8 @@ public:
   void sendScalesTare();
   void sendScalesSetFactors(ScalesFactors factors);
   void sendRequestProfileNames();
+  void sendRequestProfileData(uint8_t index);
+  void sendProfileDataSnapshot(const ProfileDataSnapshot& snapshot);
 
   bool isConnected();
   void readDataAndTick();

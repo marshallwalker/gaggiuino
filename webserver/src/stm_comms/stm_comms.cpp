@@ -8,11 +8,16 @@ namespace {
   bool hasProfileNames = false;
   ScalesSnapshot lastScalesSnapshot = {};
   bool hasScalesSnapshot = false;
+  // Per-index profile-data cache. PROFILE_NAMES_COUNT comes from sensors_state.h
+  // (transitively via mcu_comms.h) — same 5-slot ceiling the firmware uses.
+  ProfileDataSnapshot lastProfileData[PROFILE_NAMES_COUNT] = {};
+  bool hasProfileData[PROFILE_NAMES_COUNT] = {};
 }
 
 void stmCommsTask(void* params);
 void onProfileNamesSnapshotInternal(ProfileNamesSnapshot& snapshot);
 void onScalesSnapshotInternal(ScalesSnapshot& snapshot);
+void onProfileDataSnapshotInternal(ProfileDataSnapshot& snapshot);
 
 void stmCommsInit(HardwareSerial& serial) {
   serial.setRxBufferSize(256);
@@ -29,6 +34,7 @@ void stmCommsInit(HardwareSerial& serial) {
   mcuComms.setProfileNamesSnapshotCallback(onProfileNamesSnapshotInternal);
   mcuComms.setLogRecordReceivedCallback(onLogRecordReceived);
   mcuComms.setScalesSnapshotReceivedCallback(onScalesSnapshotInternal);
+  mcuComms.setProfileDataSnapshotReceivedCallback(onProfileDataSnapshotInternal);
 
   xTaskCreateUniversal(stmCommsTask, "stmComms", configMINIMAL_STACK_SIZE + 2400, NULL, PRIORITY_STM_COMMS, NULL, CORE_STM_COMMS);
 }
@@ -88,6 +94,12 @@ void stmCommsSendRequestProfileNames() {
   xSemaphoreGiveRecursive(mcucLock);
 }
 
+void stmCommsSendRequestProfileData(uint8_t index) {
+  if (xSemaphoreTakeRecursive(mcucLock, portMAX_DELAY) == pdFALSE) return;
+  mcuComms.sendRequestProfileData(index);
+  xSemaphoreGiveRecursive(mcucLock);
+}
+
 bool stmCommsHasProfileNames() {
   return hasProfileNames;
 }
@@ -102,6 +114,18 @@ bool stmCommsHasScalesSnapshot() {
 
 const ScalesSnapshot& stmCommsGetCachedScalesSnapshot() {
   return lastScalesSnapshot;
+}
+
+bool stmCommsHasProfileData(uint8_t index) {
+  if (index < 1 || index > PROFILE_NAMES_COUNT) return false;
+  return hasProfileData[index - 1];
+}
+
+const ProfileDataSnapshot& stmCommsGetCachedProfileData(uint8_t index) {
+  // Caller is expected to check stmCommsHasProfileData first; this just
+  // clamps to a safe slot if they don't.
+  uint8_t slot = (index >= 1 && index <= PROFILE_NAMES_COUNT) ? index - 1 : 0;
+  return lastProfileData[slot];
 }
 
 // Cache the snapshot before forwarding to the externally-defined handler so the
@@ -120,4 +144,15 @@ void onScalesSnapshotInternal(ScalesSnapshot& snapshot) {
   lastScalesSnapshot = snapshot;
   hasScalesSnapshot = true;
   onScalesSnapshotReceived(snapshot);
+}
+
+// Cache profile-data responses by index so the GET /api/profiles/{idx}
+// handler can return the cached copy after the first request and avoid a
+// round-trip to the STM on every refresh.
+void onProfileDataSnapshotInternal(ProfileDataSnapshot& snapshot) {
+  if (snapshot.index >= 1 && snapshot.index <= PROFILE_NAMES_COUNT) {
+    lastProfileData[snapshot.index - 1] = snapshot;
+    hasProfileData[snapshot.index - 1] = true;
+  }
+  onProfileDataSnapshotReceived(snapshot);
 }

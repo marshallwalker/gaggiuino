@@ -835,6 +835,14 @@ void onRequestProfileNamesReceived() {
   espCommsSendProfileNames(runningCfg);
 }
 
+void onRequestProfileDataReceived(uint8_t index) {
+  // ESP webserver asked for the basic settings of one profile (e.g. for the
+  // dashboard's profile-detail card). Respond from runningCfg. Out-of-range
+  // index produces a sentinel response (index=0) so the ESP can 404 cleanly.
+  LOG_INFO("ESP requested profile data for index %u", index);
+  espCommsSendProfileData(runningCfg, index);
+}
+
 void onScalesSetFactorsReceived(ScalesFactors factors) {
   // Reject obviously bogus values - factor of 0 or negative would divide by
   // zero / produce nonsense and brick the live weight reading.

@@ -49,3 +49,9 @@ void onLogRecordReceived(LogSnapshot& snapshot) {
 void onScalesSnapshotReceived(ScalesSnapshot& snapshot) {
   wsSendScalesSnapshotToClients(snapshot);
 }
+
+void onProfileDataSnapshotReceived(ProfileDataSnapshot&) {
+  // Cached in stm_comms; no WS broadcast — the HTTP /api/profiles/{idx}
+  // handler reads from that cache. Profile data isn't a live signal worth
+  // streaming to all clients on every change.
+}

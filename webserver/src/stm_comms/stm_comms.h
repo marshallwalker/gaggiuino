@@ -12,11 +12,14 @@ void stmCommsSendCalibrateTof(TofCalibrationTarget target);
 void stmCommsSendScalesTare();
 void stmCommsSendScalesSetFactors(float factor1, float factor2);
 void stmCommsSendRequestProfileNames();
+void stmCommsSendRequestProfileData(uint8_t index);
 
 bool stmCommsHasProfileNames();
 const ProfileNamesSnapshot& stmCommsGetCachedProfileNames();
 bool stmCommsHasScalesSnapshot();
 const ScalesSnapshot& stmCommsGetCachedScalesSnapshot();
+bool stmCommsHasProfileData(uint8_t index);
+const ProfileDataSnapshot& stmCommsGetCachedProfileData(uint8_t index);
 
 // To be defined elsewhere
 void onSensorStateSnapshotReceived(SensorStateSnapshot& snapshot);
@@ -24,6 +27,7 @@ void onShotSnapshotReceived(ShotSnapshot& snapshot);
 void onScalesTareReceived();
 void onScalesSnapshotReceived(ScalesSnapshot& snapshot);
 void onProfileNamesSnapshotReceived(ProfileNamesSnapshot& snapshot);
+void onProfileDataSnapshotReceived(ProfileDataSnapshot& snapshot);
 void onLogRecordReceived(LogSnapshot& snapshot);
 
 #endif

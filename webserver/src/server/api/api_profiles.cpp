@@ -8,14 +8,34 @@
 #include "../../log/log.h"
 
 void handleGetProfiles(AsyncWebServerRequest* request);
+void handleGetProfileByIndex(AsyncWebServerRequest* request, uint8_t index);
 void handlePutActiveProfile(AsyncWebServerRequest* request, JsonVariant& body);
 
 void setupProfilesApi(AsyncWebServer& server) {
+  // Single GET handler dispatches /api/profiles (names list) and
+  // /api/profiles/<1..5> (per-profile detail) by parsing the URL —
+  // ESPAsyncWebServer prefix-matches subpaths against this registration.
   server.on("/api/profiles", HTTP_GET, handleGetProfiles);
   server.addHandler(jsonHandler("/api/profiles/active", HTTP_PUT, handlePutActiveProfile));
 }
 
 void handleGetProfiles(AsyncWebServerRequest* request) {
+  // Dispatch /api/profiles (names list) vs /api/profiles/<1..5> (per-profile
+  // detail) by parsing the suffix. ESPAsyncWebServer's prefix-matching
+  // routes both shapes here.
+  String url = request->url();
+  if (url.length() > 14 /* strlen("/api/profiles/") */) {
+    String suffix = url.substring(14);
+    if (suffix.length() == 1 && isDigit(suffix.charAt(0))) {
+      uint8_t idx = (uint8_t)(suffix.charAt(0) - '0');
+      handleGetProfileByIndex(request, idx);
+      return;
+    }
+    request->send(404, "application/json",
+      "{\"result\":\"error\",\"message\":\"unknown profiles path\"}");
+    return;
+  }
+
   LOG_INFO("Got request to list profiles");
 
   // Cache miss: ask the STM and wait briefly for the snapshot. Bounded wait
@@ -50,6 +70,46 @@ void handleGetProfiles(AsyncWebServerRequest* request) {
   }
 
   serializeJson(profiles, *response);
+  request->send(response);
+}
+
+void handleGetProfileByIndex(AsyncWebServerRequest* request, uint8_t index) {
+  LOG_INFO("Got request for profile data index=%u", index);
+
+  if (index < 1 || index > PROFILE_NAMES_COUNT) {
+    request->send(400, "application/json", "{\"result\":\"error\",\"message\":\"index out of range\"}");
+    return;
+  }
+
+  // Cache miss: ask the STM and wait briefly. Same bounded-poll pattern as
+  // /api/profiles uses for names.
+  if (!stmCommsHasProfileData(index)) {
+    LOG_INFO("Profile-data cache miss for %u; requesting from STM", index);
+    stmCommsSendRequestProfileData(index);
+    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(300);
+    while (!stmCommsHasProfileData(index) && xTaskGetTickCount() < deadline) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+  }
+
+  if (!stmCommsHasProfileData(index)) {
+    request->send(503, "application/json",
+      "{\"result\":\"error\",\"message\":\"STM did not respond to profile data request\"}");
+    return;
+  }
+
+  AsyncResponseStream* response = request->beginResponseStream("application/json");
+  StaticJsonDocument<256> json;
+  const ProfileDataSnapshot& s = stmCommsGetCachedProfileData(index);
+  json["index"] = s.index;
+  json["name"] = s.name;
+  json["preinfusionSec"] = s.preinfusionSec;
+  json["preinfusionBar"] = s.preinfusionBar;
+  json["setpoint"] = s.setpoint;
+  json["shotDose"] = s.shotDose;
+  json["shotStopOnCustomWeight"] = s.shotStopOnCustomWeight;
+  json["stopOnWeightState"] = s.stopOnWeightState;
+  serializeJson(json, *response);
   request->send(response);
 }
 
