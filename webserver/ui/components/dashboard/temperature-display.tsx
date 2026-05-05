@@ -15,14 +15,19 @@ export function TemperatureDisplay() {
   const heating = boilerTemp < targetTemp - 0.5
   const isStable = Math.abs(boilerTemp - targetTemp) < 1
 
-  // Bar range stays anchored at 85°C low. The high end follows the target so
-  // the gradient still spans usefully in steam mode (target ~155°C) without
-  // pegging the way it would against a fixed 100°C ceiling.
-  const barLow = 85
-  const barHigh = Math.max(targetTemp + 5, 100)
-  const barRange = barHigh - barLow
-  const barFill = Math.min(100, Math.max(0, ((boilerTemp - barLow) / barRange) * 100))
-  const targetMark = Math.min(100, Math.max(0, ((targetTemp - barLow) / barRange) * 100))
+  // Bar fills from ambient (~20°C) up to 110% of the target. The target
+  // mark always sits at 90% of the bar width — that way "bar full" reads
+  // as "at temperature" and the top 10% is overshoot headroom. Works in
+  // both brew (target ~93°C) and steam (target ~155°C) without retuning
+  // the range. Guarded so targetTemp=0 (pre-WS-handshake) collapses to
+  // a no-op zero bar instead of dividing by a tiny span.
+  const FLOOR = 20
+  const TARGET_POSITION = 0.9
+  const haveTarget = targetTemp > FLOOR
+  const span = haveTarget ? (targetTemp - FLOOR) / TARGET_POSITION : 0
+  const clamped = haveTarget ? Math.max(FLOOR, Math.min(FLOOR + span, boilerTemp)) : FLOOR
+  const barFill = haveTarget ? ((clamped - FLOOR) / span) * 100 : 0
+  const targetMark = haveTarget ? TARGET_POSITION * 100 : 0
 
   return (
     <Card className="bg-card border-border">
