@@ -102,25 +102,25 @@ export function ProfileSelector() {
         {activeData && !detailLoading && (
           <div className="mt-4 space-y-3">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-secondary rounded-lg p-2">
+              <div className="bg-secondary rounded-lg p-2 flex flex-col">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                   Pre-infusion
                 </p>
-                <p className="text-sm font-medium text-foreground mt-0.5">
+                <p className="flex-1 flex items-center justify-center text-sm font-medium text-foreground">
                   {activeData.preinfusionSec > 0
                     ? `${activeData.preinfusionSec}s @ ${activeData.preinfusionBar.toFixed(1)} bar`
                     : "Off"}
                 </p>
               </div>
-              <div className="bg-secondary rounded-lg p-2">
+              <div className="bg-secondary rounded-lg p-2 flex flex-col">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Temp</p>
-                <p className="text-sm font-medium text-foreground mt-0.5">
+                <p className="flex-1 flex items-center justify-center text-sm font-medium text-foreground">
                   {activeData.setpoint}°C
                 </p>
               </div>
-              <div className="bg-secondary rounded-lg p-2">
+              <div className="bg-secondary rounded-lg p-2 flex flex-col">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Dose</p>
-                <p className="text-sm font-medium text-foreground mt-0.5">
+                <p className="flex-1 flex items-center justify-center text-sm font-medium text-foreground">
                   {activeData.shotDose > 0 ? `${activeData.shotDose.toFixed(1)} g` : "—"}
                 </p>
               </div>
@@ -128,19 +128,19 @@ export function ProfileSelector() {
 
             {activeData.stopOnWeightState && (
               <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="bg-secondary rounded-lg p-2">
+                <div className="bg-secondary rounded-lg p-2 flex flex-col">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                     Target Weight
                   </p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">
+                  <p className="flex-1 flex items-center justify-center text-sm font-medium text-foreground">
                     {fmtGrams(activeData.targetWeight)} g
                   </p>
                 </div>
-                <div className="bg-secondary rounded-lg p-2">
+                <div className="bg-secondary rounded-lg p-2 flex flex-col">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                     Brew Ratio
                   </p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">
+                  <p className="flex-1 flex items-center justify-center text-sm font-medium text-foreground">
                     {ratio ?? "—"}
                   </p>
                 </div>

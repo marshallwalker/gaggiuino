@@ -14,7 +14,9 @@ export interface SensorData {
   temperature: number;
   targetTemperature: number;
   pressure: number;
+  targetPressure: number; // bar; 0 = no target (idle / non-pressure phase)
   pumpFlow: number;
+  targetPumpFlow: number; // ml/s; 0 = no target
   weightFlow: number;
   weight: number;
   waterLvl: number;

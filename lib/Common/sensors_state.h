@@ -26,6 +26,13 @@ struct SensorState {
   float smoothedPumpFlow;
   float smoothedWeightFlow;
   float consideredFlow;
+  // Live targets from the active brew phase. 0 means "no target" — i.e.
+  // not currently brewing, or the active phase doesn't drive that variable.
+  // For pressure phases, targetPressure is the setpoint; for flow phases
+  // it's the configured restriction (pressure cap). Mirrors the
+  // ShotSnapshot fields but available outside the shot stream.
+  float targetPressure;       // bar
+  float targetPumpFlow;       // ml/s
   long pumpClicks;
   uint16_t waterLvl;
   uint16_t tofRangeRaw;           // Raw VL53L0X distance in mm (for live calibration UX)
@@ -42,7 +49,9 @@ struct SensorStateSnapshot {
   float temperature;
   float targetTemperature;
   float pressure;
+  float targetPressure;           // bar; 0 = no target (idle / non-pressure phase)
   float pumpFlow;
+  float targetPumpFlow;           // ml/s; 0 = no target
   float weightFlow;
   float weight;
   uint16_t waterLvl;

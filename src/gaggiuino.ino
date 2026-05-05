@@ -129,6 +129,12 @@ void setup(void) {
 
 //Main loop where all the logic is continuously run
 void loop(void) {
+  // Default the live phase targets to 0 each iteration. profiling() overwrites
+  // them when brew is active; everything else (idle, steam, hot water, descale)
+  // legitimately has no target so the UI shows no target band.
+  currentState.targetPressure = 0.f;
+  currentState.targetPumpFlow = 0.f;
+
   fillBoiler();
   if (lcdCurrentPageId != lcdLastCurrentPageId) pageValuesRefresh();
   lcdListen();
@@ -898,6 +904,11 @@ static void profiling(void) {
     phaseProfiler.updatePhase(timeInShot, currentState);
     CurrentPhase& currentPhase = phaseProfiler.getCurrentPhase();
     ShotSnapshot shotSnapshot = buildShotSnapshot(timeInShot, currentState, currentPhase);
+    // Mirror the phase-resolved targets onto SensorState so they ride the
+    // sensor stream (1 Hz) in addition to the shot stream (10 Hz). Lets the
+    // dashboard render a live target band on the pressure gauge at any time.
+    currentState.targetPressure = shotSnapshot.targetPressure;
+    currentState.targetPumpFlow = shotSnapshot.targetPumpFlow;
     espCommsSendShotData(shotSnapshot, 100);
 
     if (phaseProfiler.isFinished()) {

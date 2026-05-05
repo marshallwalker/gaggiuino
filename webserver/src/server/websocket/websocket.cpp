@@ -141,7 +141,9 @@ void wsSendSensorStateSnapshotToClients(SensorStateSnapshot& snapshot) {
   data["tofRangeFull"] = snapshot.tofRangeFull;
   data["tofRangeEmpty"] = snapshot.tofRangeEmpty;
   data["pressure"] = snapshot.pressure;
+  data["targetPressure"] = snapshot.targetPressure;
   data["pumpFlow"] = snapshot.pumpFlow;
+  data["targetPumpFlow"] = snapshot.targetPumpFlow;
   data["weightFlow"] = snapshot.weightFlow;
   data["weight"] = snapshot.weight;
   data["activeProfile"] = snapshot.activeProfile;

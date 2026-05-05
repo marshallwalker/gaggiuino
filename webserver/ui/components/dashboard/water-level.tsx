@@ -13,13 +13,13 @@ export function WaterLevel() {
   const getStatusColor = () => {
     if (level < 20) return "text-destructive"
     if (level < 40) return "text-yellow-500"
-    return "text-primary"
+    return "text-sky-400"
   }
 
   const getBarColor = () => {
     if (level < 20) return "bg-destructive"
     if (level < 40) return "bg-yellow-500"
-    return "bg-primary"
+    return "bg-sky-400"
   }
 
   return (
