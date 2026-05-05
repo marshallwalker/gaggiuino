@@ -63,11 +63,12 @@ export function ProfileSelector() {
     }
   }
 
-  // Brew ratio displayed as dose:yield (e.g. "18g : 36g"). Only meaningful
-  // when the profile stops on weight; otherwise the target field is unused.
+  // Conventional barista ratio: 1:N where N = yield/dose. 18g→36g = 1:2,
+  // 18g→27g = 1:1.5, etc. Absolute dose and target weight are shown
+  // separately in their own boxes — no need to repeat them here.
   const ratio =
     activeData && activeData.stopOnWeightState && activeData.shotDose > 0
-      ? `${fmtGrams(activeData.shotDose)}g : ${fmtGrams(activeData.targetWeight)}g`
+      ? `1 : ${fmtGrams(activeData.targetWeight / activeData.shotDose)}`
       : null
 
   return (
