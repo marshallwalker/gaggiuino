@@ -1,16 +1,29 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Coffee, Settings, Wind } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BrewDashboard } from "@/components/dashboard/brew-dashboard"
 import { SteamDashboard } from "@/components/dashboard/steam-dashboard"
+import { useSensorData } from "@/hooks/use-sensor-data"
 
 type MachineMode = "brew" | "steam"
 
 export default function HomePage() {
+  const sensor = useSensorData()
   const [mode, setMode] = useState<MachineMode>("brew")
+  // Track the previous steamActive value so we only auto-switch on the
+  // physical switch transitions — not on every WS frame. Manual clicks on
+  // the brew/steam buttons still work in between transitions.
+  const prevSteamActive = useRef(false)
+
+  useEffect(() => {
+    if (sensor.steamActive !== prevSteamActive.current) {
+      setMode(sensor.steamActive ? "steam" : "brew")
+    }
+    prevSteamActive.current = sensor.steamActive
+  }, [sensor.steamActive])
 
   return (
     <div className="min-h-screen bg-background">
