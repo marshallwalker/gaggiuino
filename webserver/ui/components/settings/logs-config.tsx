@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,149 +23,106 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Terminal, Trash2, Download, Pause, Play, Filter } from "lucide-react"
+import { Terminal, Trash2, ClipboardCopy, Check, Filter } from "lucide-react"
+import { toast } from "sonner"
+import { useLogs, type TimedLog } from "@/hooks/use-logs"
+import {
+  LOG_LEVEL_LABEL,
+  LOG_LEVEL_ORDER,
+  parseLog,
+  type LogLevel,
+} from "@/lib/logs-client"
 
-type LogLevel = "debug" | "info" | "warn" | "error"
-
-interface LogEntry {
-  id: number
-  timestamp: Date
-  level: LogLevel
-  source: string
-  message: string
+// Tailwind classes for each level. Errors deserve color; info / debug stay
+// muted so they don't dominate the viewer visually.
+const LEVEL_TEXT: Record<LogLevel, string> = {
+  E: "text-red-400",
+  I: "text-blue-400",
+  V: "text-muted-foreground",
+  D: "text-muted-foreground/60",
 }
 
-const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
+const LEVEL_BADGE: Record<LogLevel, string> = {
+  E: "bg-red-500/20 text-red-400 border-red-500/30",
+  I: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  V: "bg-muted text-muted-foreground border-border",
+  D: "bg-muted/50 text-muted-foreground/70 border-border",
 }
 
-const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
-  debug: "text-muted-foreground",
-  info: "text-blue-400",
-  warn: "text-yellow-400",
-  error: "text-red-400",
+function formatHHMMSS(date: Date): string {
+  const h = date.getHours().toString().padStart(2, "0")
+  const m = date.getMinutes().toString().padStart(2, "0")
+  const s = date.getSeconds().toString().padStart(2, "0")
+  return `${h}:${m}:${s}`
 }
 
-const LOG_LEVEL_BADGE: Record<LogLevel, string> = {
-  debug: "bg-muted text-muted-foreground",
-  info: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  warn: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  error: "bg-red-500/20 text-red-400 border-red-500/30",
+// Render one log line as the user-requested format:
+// HH:MM:SS [LEVEL] [BOARD] [SYSTEM] message
+function formatForClipboard(entry: TimedLog): string {
+  const parsed = parseLog(entry.record.log)
+  const level = LOG_LEVEL_LABEL[parsed.level]
+  const time = formatHHMMSS(entry.receivedAt)
+  const system = parsed.system || "?"
+  return `${time} [${level}] [${entry.record.source}] [${system}] ${parsed.message}`
 }
-
-// Mock log messages for simulation
-const MOCK_MESSAGES: { level: LogLevel; source: string; message: string }[] = [
-  { level: "debug", source: "TOF", message: "Reading water level: 847mm" },
-  { level: "debug", source: "SCALE", message: "Load cell 1 raw: 8234521" },
-  { level: "debug", source: "SCALE", message: "Load cell 2 raw: 8234890" },
-  { level: "info", source: "WIFI", message: "Connected to HomeNetwork (192.168.1.42)" },
-  { level: "info", source: "BOILER", message: "Temperature reached target: 93.0°C" },
-  { level: "info", source: "BREW", message: "Shot started" },
-  { level: "info", source: "BREW", message: "Preinfusion complete, extraction started" },
-  { level: "info", source: "BREW", message: "Shot complete: 36.2g in 28.4s" },
-  { level: "info", source: "PUMP", message: "Pressure stabilized at 9.0 bar" },
-  { level: "warn", source: "WATER", message: "Water level low (15%)" },
-  { level: "warn", source: "BOILER", message: "Temperature drift detected: +1.2°C" },
-  { level: "warn", source: "SCALE", message: "Tare drift detected, recalibrating" },
-  { level: "error", source: "PUMP", message: "Over-pressure protection triggered: 11.2 bar" },
-  { level: "error", source: "BOILER", message: "Heating element timeout" },
-  { level: "error", source: "WIFI", message: "Connection lost, reconnecting..." },
-]
 
 export function LogsConfig() {
-  const [logs, setLogs] = useState<LogEntry[]>([])
-  const [logLevel, setLogLevel] = useState<LogLevel>("info")
-  const [filterLevel, setFilterLevel] = useState<LogLevel>("debug")
-  const [isPaused, setIsPaused] = useState(false)
+  const liveLogs = useLogs({ maxLines: 500 })
+  // Local clear: snapshot the count at clear time so we only display entries
+  // that arrive AFTER. Resets on next clear.
+  const [clearedAfter, setClearedAfter] = useState<number | null>(null)
+  const [filterLevel, setFilterLevel] = useState<LogLevel>("V")
   const [autoScroll, setAutoScroll] = useState(true)
+  const [copied, setCopied] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const logIdRef = useRef(0)
 
-  // Generate initial logs
+  // Effective viewport: drop everything up to clearedAfter (when set), then
+  // apply the level filter. useMemo so the rendered list recomputes only
+  // when inputs change.
+  const visible = useMemo(() => {
+    const base = clearedAfter !== null ? liveLogs.slice(clearedAfter) : liveLogs
+    return base
+      .map((entry) => ({ entry, parsed: parseLog(entry.record.log) }))
+      .filter(({ parsed }) => LOG_LEVEL_ORDER[parsed.level] <= LOG_LEVEL_ORDER[filterLevel])
+  }, [liveLogs, clearedAfter, filterLevel])
+
+  // Auto-scroll on new content. Disabled if the user toggled it off.
   useEffect(() => {
-    const initialLogs: LogEntry[] = []
-    const now = new Date()
-    for (let i = 20; i > 0; i--) {
-      const entry = MOCK_MESSAGES[Math.floor(Math.random() * MOCK_MESSAGES.length)]
-      initialLogs.push({
-        id: logIdRef.current++,
-        timestamp: new Date(now.getTime() - i * 2000),
-        ...entry,
-      })
+    if (!autoScroll) return
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [visible, autoScroll])
+
+  // Counts shown in the header — count from the live (post-clear) buffer
+  // so the user gets feedback even when filtered down to one level.
+  const counts = useMemo(() => {
+    const base = clearedAfter !== null ? liveLogs.slice(clearedAfter) : liveLogs
+    const c = { E: 0, I: 0, V: 0, D: 0 }
+    for (const entry of base) {
+      const lvl = parseLog(entry.record.log).level
+      c[lvl] += 1
     }
-    setLogs(initialLogs)
-  }, [])
+    return c
+  }, [liveLogs, clearedAfter])
 
-  // Simulate incoming logs
-  useEffect(() => {
-    if (isPaused) return
+  const handleClear = () => {
+    setClearedAfter(liveLogs.length)
+  }
 
-    const interval = setInterval(() => {
-      const entry = MOCK_MESSAGES[Math.floor(Math.random() * MOCK_MESSAGES.length)]
-      // Only add logs at or above the configured log level
-      if (LOG_LEVEL_PRIORITY[entry.level] >= LOG_LEVEL_PRIORITY[logLevel]) {
-        setLogs((prev) => [
-          ...prev.slice(-200), // Keep last 200 logs
-          {
-            id: logIdRef.current++,
-            timestamp: new Date(),
-            ...entry,
-          },
-        ])
-      }
-    }, 1500 + Math.random() * 2000)
-
-    return () => clearInterval(interval)
-  }, [isPaused, logLevel])
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (autoScroll && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  const handleCopy = async () => {
+    if (visible.length === 0) {
+      toast.error("No log lines to copy")
+      return
     }
-  }, [logs, autoScroll])
-
-  const filteredLogs = logs.filter(
-    (log) => LOG_LEVEL_PRIORITY[log.level] >= LOG_LEVEL_PRIORITY[filterLevel]
-  )
-
-  const handleClearLogs = () => {
-    setLogs([])
-  }
-
-  const handleDownloadLogs = () => {
-    const logText = logs
-      .map(
-        (log) =>
-          `[${log.timestamp.toISOString()}] [${log.level.toUpperCase()}] [${log.source}] ${log.message}`
-      )
-      .join("\n")
-    const blob = new Blob([logText], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `espresso-logs-${new Date().toISOString().split("T")[0]}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })
-  }
-
-  const logCounts = {
-    debug: logs.filter((l) => l.level === "debug").length,
-    info: logs.filter((l) => l.level === "info").length,
-    warn: logs.filter((l) => l.level === "warn").length,
-    error: logs.filter((l) => l.level === "error").length,
+    const text = visible.map(({ entry }) => formatForClipboard(entry)).join("\n")
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      toast.success(`Copied ${visible.length} line${visible.length === 1 ? "" : "s"}`)
+      setTimeout(() => setCopied(false), 1500)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Clipboard write failed")
+    }
   }
 
   return (
@@ -178,15 +135,15 @@ export function LogsConfig() {
             </div>
             <div>
               <CardTitle>System Logs</CardTitle>
-              <CardDescription>View and manage machine logs</CardDescription>
+              <CardDescription>Live log stream from the STM and ESP</CardDescription>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={LOG_LEVEL_BADGE.error}>
-              {logCounts.error}
+            <Badge variant="outline" className={LEVEL_BADGE.E}>
+              {counts.E}
             </Badge>
-            <Badge variant="outline" className={LOG_LEVEL_BADGE.warn}>
-              {logCounts.warn}
+            <Badge variant="outline" className={LEVEL_BADGE.I}>
+              {counts.I}
             </Badge>
           </div>
         </div>
@@ -195,32 +152,17 @@ export function LogsConfig() {
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Log Level:</span>
-            <Select value={logLevel} onValueChange={(v) => setLogLevel(v as LogLevel)}>
-              <SelectTrigger className="w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="debug">Debug</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="warn">Warn</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Filter:</span>
             <Select value={filterLevel} onValueChange={(v) => setFilterLevel(v as LogLevel)}>
-              <SelectTrigger className="w-28">
+              <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="debug">Debug+</SelectItem>
-                <SelectItem value="info">Info+</SelectItem>
-                <SelectItem value="warn">Warn+</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
+                <SelectItem value="E">Errors only</SelectItem>
+                <SelectItem value="I">Info+</SelectItem>
+                <SelectItem value="V">Verbose+</SelectItem>
+                <SelectItem value="D">Debug+ (all)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -228,27 +170,13 @@ export function LogsConfig() {
           <div className="flex-1" />
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPaused(!isPaused)}
-            >
-              {isPaused ? (
-                <>
-                  <Play className="h-4 w-4 mr-1" />
-                  Resume
-                </>
+            <Button variant="outline" size="sm" onClick={handleCopy}>
+              {copied ? (
+                <Check className="h-4 w-4 mr-1 text-primary" />
               ) : (
-                <>
-                  <Pause className="h-4 w-4 mr-1" />
-                  Pause
-                </>
+                <ClipboardCopy className="h-4 w-4 mr-1" />
               )}
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={handleDownloadLogs}>
-              <Download className="h-4 w-4 mr-1" />
-              Export
+              Copy
             </Button>
 
             <AlertDialog>
@@ -260,14 +188,16 @@ export function LogsConfig() {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Clear all logs?</AlertDialogTitle>
+                  <AlertDialogTitle>Clear log view?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete all {logs.length} log entries. This action cannot be undone.
+                    Hides the {visible.length} currently-displayed lines. New
+                    entries will continue streaming in. The firmware-side
+                    history is unchanged — refreshing the page brings it back.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearLogs}>Clear Logs</AlertDialogAction>
+                  <AlertDialogAction onClick={handleClear}>Clear</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -278,27 +208,32 @@ export function LogsConfig() {
         <div className="rounded-lg border border-border bg-background/50 overflow-hidden">
           <ScrollArea className="h-80" ref={scrollRef}>
             <div className="p-2 font-mono text-xs space-y-0.5">
-              {filteredLogs.length === 0 ? (
+              {visible.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
-                  No logs to display
+                  {liveLogs.length === 0
+                    ? "Waiting for logs…"
+                    : "No logs match the current filter"}
                 </div>
               ) : (
-                filteredLogs.map((log) => (
+                visible.map(({ entry, parsed }, idx) => (
                   <div
-                    key={log.id}
+                    key={`${entry.receivedAt.getTime()}-${idx}`}
                     className="flex items-start gap-2 py-1 px-2 rounded hover:bg-secondary/50"
                   >
                     <span className="text-muted-foreground shrink-0">
-                      {formatTime(log.timestamp)}
+                      {formatHHMMSS(entry.receivedAt)}
                     </span>
                     <Badge
                       variant="outline"
-                      className={`${LOG_LEVEL_BADGE[log.level]} text-[10px] px-1.5 py-0 shrink-0 uppercase`}
+                      className={`${LEVEL_BADGE[parsed.level]} text-[10px] px-1.5 py-0 shrink-0 uppercase`}
                     >
-                      {log.level}
+                      {LOG_LEVEL_LABEL[parsed.level]}
                     </Badge>
-                    <span className="text-primary shrink-0">[{log.source}]</span>
-                    <span className={LOG_LEVEL_COLORS[log.level]}>{log.message}</span>
+                    <span className="text-primary shrink-0">[{entry.record.source}]</span>
+                    {parsed.system && (
+                      <span className="text-muted-foreground/70 shrink-0">[{parsed.system}]</span>
+                    )}
+                    <span className={LEVEL_TEXT[parsed.level]}>{parsed.message}</span>
                   </div>
                 ))
               )}
@@ -309,20 +244,16 @@ export function LogsConfig() {
         {/* Status Bar */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            Showing {filteredLogs.length} of {logs.length} entries
+            Showing {visible.length} of{" "}
+            {clearedAfter !== null ? liveLogs.length - clearedAfter : liveLogs.length} entries
           </span>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setAutoScroll(!autoScroll)}
-              className={`flex items-center gap-1 ${autoScroll ? "text-primary" : ""}`}
-            >
-              <div className={`h-2 w-2 rounded-full ${autoScroll ? "bg-primary" : "bg-muted-foreground"}`} />
-              Auto-scroll {autoScroll ? "on" : "off"}
-            </button>
-            {isPaused && (
-              <span className="text-yellow-400">Paused</span>
-            )}
-          </div>
+          <button
+            onClick={() => setAutoScroll(!autoScroll)}
+            className={`flex items-center gap-1 ${autoScroll ? "text-primary" : ""}`}
+          >
+            <div className={`h-2 w-2 rounded-full ${autoScroll ? "bg-primary" : "bg-muted-foreground"}`} />
+            Auto-scroll {autoScroll ? "on" : "off"}
+          </button>
         </div>
       </CardContent>
     </Card>
