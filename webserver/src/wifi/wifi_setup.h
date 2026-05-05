@@ -11,10 +11,11 @@ struct WiFiNetwork {
   bool secured;
 };
 
-/** Holds the current network and IP */
+/** Holds the current network, IP, and the STA MAC */
 struct WiFiConnection {
   String ssid;
   String ip;
+  String mac;  // STA MAC, populated whether or not we're currently connected
 };
 
 // WiFi definitions

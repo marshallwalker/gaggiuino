@@ -64,12 +64,11 @@ std::list<WiFiNetwork> wifiAvailableNetworks() {
 }
 
 WiFiConnection getWiFiConnection() {
+  String mac = WiFi.macAddress();  // STA MAC; valid even when not associated
   if (WiFi.isConnected()) {
-    return WiFiConnection{ .ssid = WiFi.SSID(), .ip = WiFi.localIP().toString() };
+    return WiFiConnection{ .ssid = WiFi.SSID(), .ip = WiFi.localIP().toString(), .mac = mac };
   }
-  else {
-    return WiFiConnection{ .ssid = "", .ip = "" };
-  }
+  return WiFiConnection{ .ssid = "", .ip = "", .mac = mac };
 }
 
 void wifiDisconnect() {

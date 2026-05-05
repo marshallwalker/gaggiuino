@@ -71,6 +71,7 @@ void handleGetWifiStatus(AsyncWebServerRequest* request) {
   WiFiConnection connection = getWiFiConnection();
   json["ssid"] = connection.ssid;
   json["ip"] = connection.ip;
+  json["mac"] = connection.mac;
   json["status"] = connection.ip == "" ? "disconnected" : "connected";
   serializeJson(json, *response);
   request->send(response);
