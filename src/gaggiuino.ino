@@ -91,7 +91,11 @@ void setup(void) {
   // Initialising the saved values or writing defaults if first start
   eepromInit();
   runningCfg = eepromGetCurrentValues();
-  LOG_INFO("EEPROM Init");
+  LOG_INFO("EEPROM Init (active profile %u: \"%s\", brew setpoint %u, steam setpoint %u)",
+    runningCfg.activeProfile + 1,
+    ACTIVE_PROFILE(runningCfg).name,
+    ACTIVE_PROFILE(runningCfg).setpoint,
+    runningCfg.steamSetPoint);
 
   cpsInit(runningCfg);
   LOG_INFO("CPS Init");
@@ -136,7 +140,10 @@ void loop(void) {
   currentState.targetPumpFlow = 0.f;
 
   fillBoiler();
-  if (lcdCurrentPageId != lcdLastCurrentPageId) pageValuesRefresh();
+  if (lcdCurrentPageId != lcdLastCurrentPageId) {
+    LOG_INFO("LCD page change: %d -> %d", (int)lcdLastCurrentPageId, (int)lcdCurrentPageId);
+    pageValuesRefresh();
+  }
   lcdListen();
   sensorsRead();
   brewDetect();
@@ -344,7 +351,15 @@ static void pageValuesRefresh() {
   int rawMode = lcdGetSelectedOperationalMode();
   if (rawMode >= (int)OPERATION_MODES::OPMODE_straight9Bar
    && rawMode <= (int)OPERATION_MODES::OPMODE_pressureBasedPreinfusionAndFlowProfile) {
-    selectedOperationalMode = (OPERATION_MODES) rawMode;
+    OPERATION_MODES newMode = (OPERATION_MODES) rawMode;
+    if (newMode != selectedOperationalMode) {
+      LOG_INFO("Operation mode: %d -> %d", (int)selectedOperationalMode, (int)newMode);
+    }
+    selectedOperationalMode = newMode;
+  } else if (rawMode != -1) {
+    // Out-of-range from a non-failed read is interesting on its own — could
+    // indicate a bad page or a Nextion fw mismatch.
+    LOG_ERROR("Operation mode read out of range (%d), keeping %d", rawMode, (int)selectedOperationalMode);
   }
 
   updateProfilerPhases();
@@ -899,6 +914,16 @@ void onSelectProfileReceived(uint8_t index) {
 }
 
 static void profiling(void) {
+  // Phase-transition tracking across calls. Reset on the brewActive
+  // false→true edge so the first phase of every new brew logs even if it
+  // shares an index with the last phase of the previous brew.
+  static int prevPhaseIdx = -1;
+  static bool wasBrewActive = false;
+  if (brewActive && !wasBrewActive) {
+    prevPhaseIdx = -1;
+  }
+  wasBrewActive = brewActive;
+
   if (brewActive) { //runs this only when brew button activated and pressure profile selected
     uint32_t timeInShot = millis() - brewingTimer;
     phaseProfiler.updatePhase(timeInShot, currentState);
@@ -910,6 +935,17 @@ static void profiling(void) {
     currentState.targetPressure = shotSnapshot.targetPressure;
     currentState.targetPumpFlow = shotSnapshot.targetPumpFlow;
     espCommsSendShotData(shotSnapshot, 100);
+
+    int phaseIdx = currentPhase.getIndex();
+    if (phaseIdx != prevPhaseIdx) {
+      const char* typeStr = currentPhase.getType() == PHASE_TYPE::PHASE_TYPE_PRESSURE ? "pressure" : "flow";
+      LOG_INFO("Brew phase %d (%s, target=%.2f, restriction=%.2f) at t=%lu ms",
+        phaseIdx, typeStr,
+        (double)currentPhase.getTarget(),
+        (double)currentPhase.getRestriction(),
+        (unsigned long)timeInShot);
+      prevPhaseIdx = phaseIdx;
+    }
 
     if (phaseProfiler.isFinished()) {
       setPumpOff();
@@ -1002,15 +1038,21 @@ static bool sysReadinessCheck(void) {
   if (!systemState.startupInitFinished) {
     return false;
   }
-  // If there's not enough water in the tank
-  if ((lcdCurrentPageId != NextionPage::BrewGraph && lcdCurrentPageId != NextionPage::BrewManual)
-  && currentState.waterLvl < MIN_WATER_LVL)
-  {
-    static uint32_t lowWaterLogTimer = 0;
-    if (millis() - lowWaterLogTimer >= 10000u) {
-      lowWaterLogTimer = millis();
-      LOG_ERROR("Water tank below threshold (%u < %u)", (unsigned)currentState.waterLvl, (unsigned)MIN_WATER_LVL);
-    }
+  // Water-tank-low transitions: edge-detect both directions so the log
+  // shows "low" once when it crosses the threshold, then "refilled" when
+  // the user adds water — instead of repeating the warning every 10s.
+  static bool prevLow = false;
+  bool nowLow =
+    (lcdCurrentPageId != NextionPage::BrewGraph && lcdCurrentPageId != NextionPage::BrewManual)
+    && currentState.waterLvl < MIN_WATER_LVL;
+  if (nowLow && !prevLow) {
+    LOG_ERROR("Water tank below threshold (%u%% < %u%%)",
+      (unsigned)currentState.waterLvl, (unsigned)MIN_WATER_LVL);
+  } else if (!nowLow && prevLow && currentState.waterLvl >= MIN_WATER_LVL) {
+    LOG_INFO("Water tank refilled (%u%%)", (unsigned)currentState.waterLvl);
+  }
+  prevLow = nowLow;
+  if (nowLow) {
     lcdShowPopup("Fill the water tank!");
     return false;
   }
@@ -1027,7 +1069,11 @@ static inline void sysHealthCheck(float pressureThreshold) {
   state, so heaters cannot be re-enabled by other code paths until the
   reading recovers. Single-pass (not blocking) so the UI keeps refreshing
   and the user sees the popup. */
-  if (currentState.temperature <= 0.0f || isnan(currentState.temperature) || currentState.temperature >= 170.0f) {
+  static bool prevThermoFault = false;
+  bool nowThermoFault = currentState.temperature <= 0.0f
+                     || isnan(currentState.temperature)
+                     || currentState.temperature >= 170.0f;
+  if (nowThermoFault) {
     setPumpOff();
     setBoilerOff();
     setSteamBoilerRelayOff();
@@ -1041,7 +1087,12 @@ static inline void sysHealthCheck(float pressureThreshold) {
       LOG_ERROR("Cannot read temp from thermocouple (last read: %.1lf)!", static_cast<double>(currentState.temperature));
       currentState.steamSwitchState ? lcdShowPopup("COOLDOWN") : lcdShowPopup("TEMP READ ERROR");
     }
+  } else if (prevThermoFault) {
+    // Thermocouple recovered — fault state cleared. Heater control resumes
+    // automatically on the next modeSelect() pass.
+    LOG_INFO("Thermocouple recovered (%.1lf°C)", static_cast<double>(currentState.temperature));
   }
+  prevThermoFault = nowThermoFault;
 
   /* Shut down heaters if steam has been ON and unused for more than 10 minutes.
   Single-pass: modeSelect() skips heater control while the flag is set, and
@@ -1056,7 +1107,11 @@ static inline void sysHealthCheck(float pressureThreshold) {
     setPumpOff();
     setBoilerOff();
     setSteamBoilerRelayOff();
+    bool wasForgotten = currentState.isSteamForgottenON;
     currentState.isSteamForgottenON = currentState.steamSwitchState;
+    if (wasForgotten && !currentState.isSteamForgottenON) {
+      LOG_INFO("Steam-forgotten cleared (steam switch flipped off)");
+    }
   }
 
   //Releasing the excess pressure after steaming or brewing if necessary

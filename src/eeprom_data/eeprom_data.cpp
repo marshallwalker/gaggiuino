@@ -189,9 +189,16 @@ void eepromInit(void) {
   bool readSuccess = false;
 
   if (version < EEPROM_DATA_VERSION && legacyEepromDataLoaders[version] != nullptr) {
+    LOG_INFO("EEPROM: migrating from v%u to v%u", version, EEPROM_DATA_VERSION);
     readSuccess = (*legacyEepromDataLoaders[version])(eepromMetadata.values);
+    if (readSuccess) {
+      LOG_INFO("EEPROM: migration to v%u succeeded", EEPROM_DATA_VERSION);
+    }
   } else {
     readSuccess = loadCurrentEepromData(eepromMetadata.values);
+    if (readSuccess) {
+      LOG_INFO("EEPROM: loaded current schema (v%u)", EEPROM_DATA_VERSION);
+    }
   }
 
   if (!readSuccess) {
@@ -200,6 +207,7 @@ void eepromInit(void) {
   }
 
   if (!readSuccess || version != EEPROM_DATA_VERSION) {
+    LOG_INFO("EEPROM: writing back (readSuccess=%d, version_was=%u)", readSuccess ? 1 : 0, version);
     eepromWrite(eepromMetadata.values);
   }
 }

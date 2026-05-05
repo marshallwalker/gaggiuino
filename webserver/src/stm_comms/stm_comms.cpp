@@ -1,5 +1,6 @@
 #include "stm_comms.h"
 #include "../task_config.h"
+#include "../log/log.h"
 
 namespace {
   McuComms mcuComms;
@@ -40,8 +41,21 @@ void stmCommsInit(HardwareSerial& serial) {
 }
 
 void stmCommsTask(void* params) {
+  // Edge-detect mcuComms.isConnected() so we surface link state changes in
+  // the log stream. "Connected" means we've seen a byte from the STM in the
+  // last ~6 seconds (3× heartbeat interval).
+  bool prevConnected = false;
   for (;;) {
     stmCommsReadData();
+    bool nowConnected = mcuComms.isConnected();
+    if (nowConnected != prevConnected) {
+      if (nowConnected) {
+        LOG_INFO("STM link up");
+      } else {
+        LOG_ERROR("STM link down (no bytes for >6s)");
+      }
+      prevConnected = nowConnected;
+    }
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }

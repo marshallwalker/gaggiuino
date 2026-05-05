@@ -30,7 +30,48 @@ namespace wifi {
 
 void wifiTask(void* params);
 
+// Edge-detected WiFi state-change logging. The 10-second maintenance loop
+// can miss transient drops + reconnects entirely; this catches every state
+// transition the ESP32 driver fires, both station and AP-side.
+static void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+      LOG_INFO("WiFi STA: associated with AP");
+      break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: {
+      uint8_t reason = info.wifi_sta_disconnected.reason;
+      LOG_ERROR("WiFi STA: disconnected (reason=%u)", reason);
+      break;
+    }
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      LOG_INFO("WiFi STA: got IP %s", WiFi.localIP().toString().c_str());
+      break;
+    case ARDUINO_EVENT_WIFI_STA_LOST_IP:
+      LOG_ERROR("WiFi STA: lost IP");
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
+      LOG_INFO("WiFi AP: client joined");
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
+      LOG_INFO("WiFi AP: client left");
+      break;
+    case ARDUINO_EVENT_WIFI_AP_START:
+      LOG_INFO("WiFi AP: started");
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STOP:
+      LOG_INFO("WiFi AP: stopped");
+      break;
+    default:
+      // Other events (PROBE_REQ, scan_done, etc.) are too chatty to surface.
+      break;
+  }
+}
+
 void wifiSetup() {
+  // Edge-detected event logging registered before bringing the radio up so
+  // even the AP_START event fires through here.
+  WiFi.onEvent(onWiFiEvent);
+
   // Initialize WiFi connectivity
   WiFi.mode(WIFI_AP_STA);
 

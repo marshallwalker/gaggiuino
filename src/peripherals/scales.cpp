@@ -2,6 +2,7 @@
 #include "scales.h"
 #include "pindef.h"
 #include "remote_scales.h"
+#include "../log.h"
 
 #include <HX711_2.h>
 namespace {
@@ -40,6 +41,7 @@ void scalesInit(float scalesF1, float scalesF2) {
   currentScalesF2 = scalesF2;
   // Forced predicitve scales in case someone with actual hardware scales wants to use them.
   if (FORCE_PREDICTIVE_SCALES) {
+    LOG_INFO("Scales: forced predictive mode (FORCE_PREDICTIVE_SCALES=1)");
     return;
   }
 
@@ -52,10 +54,14 @@ void scalesInit(float scalesF1, float scalesF2) {
   if (loadCells.wait_ready_timeout(1000, 10)) {
     loadCells.tare(4);
     hwScalesPresent = true;
+    LOG_INFO("Scales: HX711 detected (factors f1=%.2f f2=%.2f)", (double)scalesF1, (double)scalesF2);
   }
   else {
     loadCells.power_down();
+    LOG_ERROR("Scales: HX711 did not respond within 1s — falling back to predictive scales");
   }
+#else
+  LOG_INFO("Scales: hardware disabled at compile time (DISABLE_HW_SCALES)");
 #endif
 
   if (!hwScalesPresent && remoteScalesIsPresent()) {

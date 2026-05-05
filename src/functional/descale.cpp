@@ -3,6 +3,7 @@
 #include "just_do_coffee.h"
 #include "../peripherals/internal_watchdog.h"
 #include "../lcd/lcd.h"
+#include "../log.h"
 
 DescalingState descalingState = DescalingState::IDLE;
 
@@ -12,9 +13,18 @@ unsigned long descalingTimer = 0;
 int descalingCycle = 0;
 
 void deScale(eepromValues_t &runningCfg, const SensorState &currentState) {
+  // Edge-detect state changes so we get one log per transition rather than
+  // spamming on every loop iteration.
+  static DescalingState prevState = DescalingState::IDLE;
+  if (descalingState != prevState) {
+    LOG_INFO("Descale state: %d -> %d (cycle %d)", (int)prevState, (int)descalingState, descalingCycle);
+    prevState = descalingState;
+  }
+
   switch (descalingState) {
     case DescalingState::IDLE: // Waiting for descaling to begin
       if (currentState.brewSwitchState) {
+        LOG_INFO("Descale: starting (brew switch held)");
         ACTIVE_PROFILE(runningCfg).setpoint = 9;
         openValve();
         setSteamValveRelayOn();
