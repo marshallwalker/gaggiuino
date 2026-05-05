@@ -1,6 +1,7 @@
 /* 09:32 15/03/2023 - change triggering comment */
 #include "just_do_coffee.h"
 #include "../lcd/lcd.h"
+#include "../log.h"
 
 extern unsigned long steamTime;
 // inline static float TEMP_DELTA(float d) { return (d*DELTA_RANGE); }
@@ -100,26 +101,77 @@ void steamCtrl(const eepromValues_t &runningCfg, SensorState &currentState) {
   // setpoint without re-applying offsetTemp on both sides.
   const uint16_t steamTempSetPoint = runningCfg.steamSetPoint;
 
-  if (currentState.smoothedPressure > steamThreshold_ || currentState.temperature > steamTempSetPoint) {
+  // Diagnostic state — track gate / boiler / pump transitions and emit a
+  // periodic heartbeat while in steam so we can see why heating stalls.
+  // Phase: 0=uninit, 1=gated-off, 2=heating, 3=at-setpoint
+  static uint8_t prevPhase = 0;
+  static bool prevPumpOn = false;
+  static uint32_t lastHeartbeatMs = 0;
+
+  uint8_t phase;
+  bool gatedByPressure = currentState.smoothedPressure > steamThreshold_;
+  bool gatedByTemp = currentState.temperature > steamTempSetPoint;
+
+  if (gatedByPressure || gatedByTemp) {
+    phase = 1;
     setBoilerOff();
     setSteamBoilerRelayOff();
     setSteamValveRelayOff();
     setPumpOff();
   } else {
     if (currentState.temperature < steamTempSetPoint) {
+      phase = 2;
       setBoilerOn();
     } else {
+      phase = 3;
       setBoilerOff();
     }
     setSteamValveRelayOn();
     setSteamBoilerRelayOn();
     #ifndef DREAM_STEAM_DISABLED // disabled for bigger boilers which have no  need of adding water during steaming
       if (currentState.smoothedPressure < activeSteamPressure_) {
+        if (!prevPumpOn) {
+          LOG_INFO("Steam: DreamSteam pump ON (p=%.2f bar < %.2f)",
+            (double)currentState.smoothedPressure, (double)activeSteamPressure_);
+        }
+        prevPumpOn = true;
         setPumpToRawValue(3);
       } else {
+        if (prevPumpOn) {
+          LOG_INFO("Steam: DreamSteam pump OFF (p=%.2f bar)",
+            (double)currentState.smoothedPressure);
+        }
+        prevPumpOn = false;
         setPumpOff();
       }
     #endif
+  }
+
+  if (phase != prevPhase) {
+    if (phase == 1) {
+      const char *reason = (gatedByPressure && gatedByTemp) ? "pressure+temp"
+                         : gatedByPressure                  ? "pressure"
+                                                            : "temp";
+      LOG_INFO("Steam: GATED OFF [%s] p=%.2f/%.2f bar t=%.1f/%u C  (relay off, brew thermostat back in series)",
+        reason,
+        (double)currentState.smoothedPressure, (double)steamThreshold_,
+        (double)currentState.temperature, (unsigned)steamTempSetPoint);
+    } else if (phase == 2) {
+      LOG_INFO("Steam: HEATING (boiler ON, steam relay ON) p=%.2f bar t=%.1f -> %u C",
+        (double)currentState.smoothedPressure,
+        (double)currentState.temperature, (unsigned)steamTempSetPoint);
+    } else if (phase == 3) {
+      LOG_INFO("Steam: AT SETPOINT (boiler OFF, holding) t=%.1f / %u C",
+        (double)currentState.temperature, (unsigned)steamTempSetPoint);
+    }
+    prevPhase = phase;
+    lastHeartbeatMs = millis();
+  } else if (currentState.steamSwitchState && millis() - lastHeartbeatMs >= 2000u) {
+    LOG_INFO("Steam: phase=%u p=%.2f bar t=%.1f / %u C",
+      phase,
+      (double)currentState.smoothedPressure,
+      (double)currentState.temperature, (unsigned)steamTempSetPoint);
+    lastHeartbeatMs = millis();
   }
 
   /*In case steam is forgotten ON for more than 15 min*/
