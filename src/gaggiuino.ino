@@ -140,6 +140,8 @@ void loop(void) {
     ? (float)runningCfg.steamSetPoint
     : (float)ACTIVE_PROFILE(runningCfg).setpoint;
   currentState.activeProfile = runningCfg.activeProfile + 1; // 1-indexed for UI
+  currentState.tofRangeFull = runningCfg.tofRangeFull;
+  currentState.tofRangeEmpty = runningCfg.tofRangeEmpty;
   espCommsSendSensorData(currentState);
 
   // Throttled scales snapshot for the web calibration UI. Only built when

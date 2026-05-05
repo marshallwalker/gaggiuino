@@ -29,6 +29,8 @@ struct SensorState {
   long pumpClicks;
   uint16_t waterLvl;
   uint16_t tofRangeRaw;           // Raw VL53L0X distance in mm (for live calibration UX)
+  uint16_t tofRangeFull;          // Persisted "tank full" reference in mm
+  uint16_t tofRangeEmpty;         // Persisted "tank empty" reference in mm
   bool tofReady;
   uint8_t activeProfile;          // 1-indexed for UI consistency
 };
@@ -45,6 +47,8 @@ struct SensorStateSnapshot {
   float weight;
   uint16_t waterLvl;
   uint16_t tofRangeRaw;           // Raw VL53L0X distance in mm (0 = no reading / sensor missing)
+  uint16_t tofRangeFull;          // Persisted "tank full" reference in mm
+  uint16_t tofRangeEmpty;         // Persisted "tank empty" reference in mm
   uint8_t activeProfile;          // 1-indexed for UI consistency
 };
 

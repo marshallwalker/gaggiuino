@@ -16,6 +16,8 @@ const DEFAULT_SENSOR_DATA: SensorData = {
   weight: 0,
   waterLvl: 0,
   tofRangeRaw: 0,
+  tofRangeFull: 0,
+  tofRangeEmpty: 0,
   activeProfile: 1,
 };
 

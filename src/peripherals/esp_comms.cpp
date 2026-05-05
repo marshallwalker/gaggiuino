@@ -57,6 +57,8 @@ void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
       .weight = state.weight,
       .waterLvl = state.waterLvl,
       .tofRangeRaw = state.tofRangeRaw,
+      .tofRangeFull = state.tofRangeFull,
+      .tofRangeEmpty = state.tofRangeEmpty,
       .activeProfile = state.activeProfile
     };
     McuCommsSingleton::getInstance().sendSensorStateSnapshot(sensorSnapshot);
