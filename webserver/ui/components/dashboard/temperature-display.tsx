@@ -1,28 +1,28 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Thermometer, Flame } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { useSensorData } from "@/hooks/use-sensor-data"
 
 export function TemperatureDisplay() {
-  const [boilerTemp, setBoilerTemp] = useState(93.2)
-  const [targetTemp] = useState(93)
-  const [heating, setHeating] = useState(false)
+  const sensor = useSensorData()
+  const boilerTemp = sensor.temperature
+  const targetTemp = sensor.targetTemperature
 
-  // Simulate temperature fluctuations
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBoilerTemp((prev) => {
-        const change = (Math.random() - 0.5) * 0.3
-        const newTemp = prev + change
-        setHeating(newTemp < targetTemp - 0.5)
-        return Math.max(85, Math.min(98, newTemp))
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [targetTemp])
-
+  // Heating = current is more than half a degree below target. Mirrors the
+  // brew-control logic on the STM (just_do_coffee.cpp pulses the boiler when
+  // temperature < setpoint).
+  const heating = boilerTemp < targetTemp - 0.5
   const isStable = Math.abs(boilerTemp - targetTemp) < 1
+
+  // Bar range stays anchored at 85°C low. The high end follows the target so
+  // the gradient still spans usefully in steam mode (target ~155°C) without
+  // pegging the way it would against a fixed 100°C ceiling.
+  const barLow = 85
+  const barHigh = Math.max(targetTemp + 5, 100)
+  const barRange = barHigh - barLow
+  const barFill = Math.min(100, Math.max(0, ((boilerTemp - barLow) / barRange) * 100))
+  const targetMark = Math.min(100, Math.max(0, ((targetTemp - barLow) / barRange) * 100))
 
   return (
     <Card className="bg-card border-border">
@@ -54,15 +54,13 @@ export function TemperatureDisplay() {
 
         {/* Temperature bar */}
         <div className="relative h-3 bg-secondary rounded-full overflow-hidden mb-4">
-          {/* Temperature gradient */}
           <div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-primary to-orange-500"
-            style={{ width: `${((boilerTemp - 85) / 15) * 100}%` }}
+            style={{ width: `${barFill}%` }}
           />
-          {/* Target marker */}
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-foreground"
-            style={{ left: `${((targetTemp - 85) / 15) * 100}%` }}
+            style={{ left: `${targetMark}%` }}
           />
         </div>
 

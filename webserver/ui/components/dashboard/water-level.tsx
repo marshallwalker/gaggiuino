@@ -1,22 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Droplets } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { useSensorData } from "@/hooks/use-sensor-data"
 
 export function WaterLevel() {
-  const [level, setLevel] = useState(72)
-
-  // Simulate live updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLevel((prev) => {
-        const change = (Math.random() - 0.5) * 2
-        return Math.max(0, Math.min(100, prev + change))
-      })
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [])
+  const sensor = useSensorData()
+  // sensor.waterLvl is already a 0-100 percentage from the STM (TOF
+  // interpolated between the FULL/EMPTY calibration endpoints).
+  const level = Math.max(0, Math.min(100, sensor.waterLvl))
 
   const getStatusColor = () => {
     if (level < 20) return "text-destructive"
@@ -42,7 +34,7 @@ export function WaterLevel() {
             {Math.round(level)}%
           </span>
         </div>
-        
+
         {/* Tank visualization */}
         <div className="relative h-32 w-full bg-secondary rounded-lg overflow-hidden border border-border">
           <div

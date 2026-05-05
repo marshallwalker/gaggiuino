@@ -1,26 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Gauge } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { useSensorData } from "@/hooks/use-sensor-data"
 
 export function PressureGauge() {
-  const [pressure, setPressure] = useState(0)
-  const [isExtracting, setIsExtracting] = useState(false)
-
-  // Simulate pressure changes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPressure((prev) => {
-        if (!isExtracting) {
-          return Math.max(0, prev - 0.5)
-        }
-        const change = (Math.random() - 0.3) * 0.8
-        return Math.max(0, Math.min(12, prev + change))
-      })
-    }, 200)
-    return () => clearInterval(interval)
-  }, [isExtracting])
+  const sensor = useSensorData()
+  const pressure = Math.max(0, Math.min(12, sensor.pressure))
+  const isExtracting = sensor.brewActive
 
   const maxPressure = 12
   const targetMin = 8
@@ -37,8 +24,7 @@ export function PressureGauge() {
             <Gauge className="h-5 w-5 text-primary" />
             <span className="text-sm font-medium text-foreground">Pressure</span>
           </div>
-          <button
-            onClick={() => setIsExtracting(!isExtracting)}
+          <span
             className={`text-xs px-2 py-1 rounded ${
               isExtracting
                 ? "bg-primary text-primary-foreground"
@@ -46,7 +32,7 @@ export function PressureGauge() {
             }`}
           >
             {isExtracting ? "Extracting" : "Idle"}
-          </button>
+          </span>
         </div>
 
         {/* Gauge visualization */}
