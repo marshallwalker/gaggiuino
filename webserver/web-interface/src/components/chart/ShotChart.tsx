@@ -14,7 +14,7 @@ import {
   Legend,
   ChartData,
 } from 'chart.js';
-import { useTheme, alpha, Theme } from '@mui/material';
+import { alphaHex, chartColor } from '@/lib/chartColors';
 import getShotChartConfig from './ChartConfig';
 
 ChartJS.register(
@@ -41,9 +41,7 @@ export interface ShotChartDataPoint {
 }
 
 function mapDataPointToLabel(dataPoint: ShotChartDataPoint): number {
-  if (!dataPoint.timeInShot) {
-    return 0;
-  }
+  if (!dataPoint.timeInShot) return 0;
   return dataPoint.timeInShot / 1000;
 }
 
@@ -55,55 +53,61 @@ function getDataset<K extends keyof ShotChartDataPoint>(input: ShotChartDataPoin
   return input.map((dp) => dp[key]);
 }
 
-function mapToChartData(input: ShotChartDataPoint[], theme: Theme): ChartData<'line'> {
+function mapToChartData(input: ShotChartDataPoint[]): ChartData<'line'> {
+  const temp = chartColor('temperature');
+  const pressure = chartColor('pressure');
+  const flow = chartColor('flow');
+  const weightFlow = chartColor('weight-flow');
+  const weight = chartColor('weight');
+
   return {
     labels: getLabels(input),
     datasets: [
       {
         label: 'Temperature',
         data: getDataset(input, 'temperature') as number[],
-        backgroundColor: alpha(theme.palette.temperature.main, 0.8),
-        borderColor: theme.palette.temperature.main,
+        backgroundColor: alphaHex(temp, 0.8),
+        borderColor: temp,
         tension: 0.3,
         yAxisID: 'y1',
       },
       {
         label: 'Pressure',
         data: getDataset(input, 'pressure') as number[],
-        backgroundColor: alpha(theme.palette.pressure.main, 0.8),
-        borderColor: theme.palette.pressure.main,
+        backgroundColor: alphaHex(pressure, 0.8),
+        borderColor: pressure,
         tension: 0.3,
         yAxisID: 'y2',
       },
       {
         label: 'Pump Flow',
         data: getDataset(input, 'pumpFlow') as number[],
-        backgroundColor: alpha(theme.palette.flow.main, 0.8),
-        borderColor: theme.palette.flow.main,
+        backgroundColor: alphaHex(flow, 0.8),
+        borderColor: flow,
         tension: 0.3,
         yAxisID: 'y2',
       },
       {
         label: 'Weight Flow',
         data: getDataset(input, 'weightFlow') as number[],
-        backgroundColor: alpha(theme.palette.weightFlow.main, 0.8),
-        borderColor: theme.palette.weightFlow.main,
+        backgroundColor: alphaHex(weightFlow, 0.8),
+        borderColor: weightFlow,
         tension: 0.3,
         yAxisID: 'y2',
       },
       {
         label: 'Weight',
         data: getDataset(input, 'shotWeight') as number[],
-        backgroundColor: alpha(theme.palette.weight.main, 0.8),
-        borderColor: theme.palette.weight.main,
+        backgroundColor: alphaHex(weight, 0.8),
+        borderColor: weight,
         tension: 0.3,
         yAxisID: 'y1',
       },
       {
         label: 'Target Pressure',
         data: getDataset(input, 'targetPressure') as number[],
-        backgroundColor: alpha(theme.palette.pressure.main, 0.3),
-        borderColor: alpha(theme.palette.pressure.main, 0.6),
+        backgroundColor: alphaHex(pressure, 0.3),
+        borderColor: alphaHex(pressure, 0.6),
         tension: 0.3,
         borderDash: [8, 4],
         yAxisID: 'y2',
@@ -111,8 +115,8 @@ function mapToChartData(input: ShotChartDataPoint[], theme: Theme): ChartData<'l
       {
         label: 'Target Flow',
         data: getDataset(input, 'targetPumpFlow') as number[],
-        backgroundColor: alpha(theme.palette.flow.main, 0.3),
-        borderColor: alpha(theme.palette.flow.main, 0.6),
+        backgroundColor: alphaHex(flow, 0.3),
+        borderColor: alphaHex(flow, 0.6),
         tension: 0.3,
         borderDash: [8, 4],
         yAxisID: 'y2',
@@ -126,10 +130,6 @@ function popDataFromChartData(chartData: ChartData<'line'>): void {
   chartData.datasets.forEach((dataset) => (dataset.data as number[]).shift());
 }
 
-/**
- * Compares the timeInShot prop of the dataPoint to the last dataPoint in chartData.
- * If it's before it must mean a new shot was started.
- */
 function newShotStarted(dataPoint: ShotChartDataPoint, chartData: ChartData<'line'>): boolean {
   const newTimeLabel = mapDataPointToLabel(dataPoint);
   const labels = (chartData.labels as number[]) ?? [];
@@ -147,9 +147,7 @@ function addDataPointToChartData(
     popDataFromChartData(chartData);
   }
 
-  if (!dataPoint) {
-    return;
-  }
+  if (!dataPoint) return;
 
   (chartData.labels as number[]).push(mapDataPointToLabel(dataPoint));
   (chartData.datasets[0].data as Array<number | undefined>).push(dataPoint.temperature);
@@ -177,27 +175,22 @@ interface ChartProps {
 
 export default function Chart({ data, newDataPoint, maxLength }: ChartProps) {
   const chartRef = useRef<ChartJS<'line'> | null>(null);
-  const theme = useTheme();
-  const config = useMemo(() => getShotChartConfig(theme), [theme]);
-  const [chartData, setChartData] = useState<ChartData<'line'>>(mapToChartData([], theme));
+  const config = useMemo(() => getShotChartConfig(), []);
+  const [chartData, setChartData] = useState<ChartData<'line'>>(mapToChartData([]));
 
   if (newDataPoint && data) {
     throw new Error("Only one of 'newDataPoint' or 'data' props must be defined");
   }
 
   useEffect(() => {
-    if (data === undefined || data === null) {
-      return;
-    }
-    setChartData(mapToChartData(data, theme));
+    if (data === undefined || data === null) return;
+    setChartData(mapToChartData(data));
   }, [data]);
 
   useEffect(() => {
-    if (newDataPoint === undefined || newDataPoint === null) {
-      return;
-    }
+    if (newDataPoint === undefined || newDataPoint === null) return;
     if (newShotStarted(newDataPoint, chartData)) {
-      setChartData(mapToChartData([newDataPoint], theme));
+      setChartData(mapToChartData([newDataPoint]));
     } else {
       addDataPointToChartData(chartData, newDataPoint, maxLength, chartRef);
     }

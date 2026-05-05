@@ -4,52 +4,64 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 0 0% 96%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    --primary: 11 86% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 199 98% 42%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent: 11 86% 95%;
+    --accent-foreground: 11 86% 25%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --ring: 11 86% 55%;
     --radius: 0.5rem;
+    --chart-temperature: #ef4040;
+    --chart-flow: #ff9d00;
+    --chart-weight-flow: #1d7835;
+    --chart-pressure: #6296c5;
+    --chart-weight: #844b48;
+    --brand-orange: #ef4e2b;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 0 0% 7%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 0 0% 10%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
+    --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
+    --primary: 11 86% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 199 98% 42%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --accent: 11 86% 18%;
+    --accent-foreground: 11 86% 75%;
+    --destructive: 0 62.8% 40%;
     --destructive-foreground: 0 0% 98%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 11 86% 55%;
+    --chart-temperature: #ef4040;
+    --chart-flow: #ffb53e;
+    --chart-weight-flow: #1d7835;
+    --chart-pressure: #6296c5;
+    --chart-weight: #a75c58;
+    --brand-orange: #ef4e2b;
   }
 }
 

@@ -7,7 +7,7 @@ import {
   ChartOptions,
   ChartData,
 } from 'chart.js';
-import { useTheme } from '@mui/material';
+import { hslVar } from '@/lib/chartColors';
 import GaugeCentralTextPlugin from './GaugeCentralTextPlugin';
 
 ChartJS.register(ArcElement, Title, GaugeCentralTextPlugin);
@@ -29,8 +29,6 @@ export default function GaugeChart({
   title = '',
   maintainAspectRatio = false,
 }: GaugeChartProps) {
-  const theme = useTheme();
-
   const options = {
     cutout: '90%',
     borderWidth: 0,
@@ -52,7 +50,7 @@ export default function GaugeChart({
   const data: ChartData<'doughnut'> = {
     datasets: [{
       data: [value, Math.max(0, maxValue - value)],
-      backgroundColor: [primaryColor, theme.palette.divider],
+      backgroundColor: [primaryColor, hslVar('border')],
     }],
   };
 

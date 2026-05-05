@@ -1,104 +1,99 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box, Container, useTheme, Fab, TextField, Grid, Button,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
-import ScaleIcon from '@mui/icons-material/Scale';
-import GaugeChart from '../../components/chart/GaugeChart';
-import GaugeLiquid from '../../components/chart/GaugeLiquid';
-import ProfileList from '../../components/profiles/ProfileList';
-import useSensorData from '../../hooks/useSensorData';
-import useProfileList from '../../hooks/useProfileList';
-import { setActiveProfile } from '../../components/client/ProfilesClient';
+import { Plus, Minus, Scale } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { chartColor } from '@/lib/chartColors';
+import GaugeChart from '@/components/chart/GaugeChart';
+import GaugeLiquid from '@/components/chart/GaugeLiquid';
+import ProfileList from '@/components/profiles/ProfileList';
+import useSensorData from '@/hooks/useSensorData';
+import useProfileList from '@/hooks/useProfileList';
+import { setActiveProfile } from '@/components/client/ProfilesClient';
 
 export default function Home() {
   const sensorData = useSensorData();
   const profiles = useProfileList();
-  const theme = useTheme();
 
   const handleSelectProfile = (index: number) => {
-    setActiveProfile(index).catch(() => {
-      // Network error or 422 - swallow for now. The sensor stream will
-      // continue to reflect the actual active profile so the UI stays
-      // consistent regardless.
+    setActiveProfile(index).catch((e) => {
+      const msg = e instanceof Error ? e.message : 'Failed to switch profile';
+      toast.error(msg);
     });
   };
 
   const boxRef = useRef<HTMLDivElement | null>(null);
-  const [boxSize, setBoxSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [boxWidth, setBoxWidth] = useState(0);
 
   useEffect(() => {
     if (boxRef.current) {
-      const { width, height } = boxRef.current.getBoundingClientRect();
-      setBoxSize({ width, height });
+      setBoxWidth(boxRef.current.getBoundingClientRect().width);
     }
   }, []);
 
-  function boxedComponent(component: React.ReactNode) {
-    return (
-      <Box
-        ref={boxRef}
-        sx={{
-          border: `0px solid ${theme.palette.divider}`,
-          position: 'relative',
-          justifyContent: 'space-evenly',
-          alignItems: 'center',
-          display: 'flex',
-          borderRadius: '20px',
-          width: '100%',
-          padding: '10px',
-        }}
-        style={{ marginTop: '-9px' }}
-      >
-        {component}
-      </Box>
-    );
-  }
-
   return (
-    <Container sx={{ pt: theme.spacing(2), gap: '0px' }}>
-      <Grid container columns={12} spacing={1} sx={{ mb: theme.spacing(1), gap: '0px' }}>
-        <Grid item xs={2}>
-          <Box sx={{ border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '0px', gap: '0px' }}>
-            {boxedComponent(<GaugeLiquid value={sensorData.waterLvl} radius={boxSize.width} />)}
-            {boxedComponent(<GaugeChart value={sensorData.pressure} maintainAspectRatio={false} primaryColor={theme.palette.pressure.main} title="Pressure" unit="bar" maxValue={14} />)}
-            {boxedComponent(<GaugeChart value={sensorData.weight} maintainAspectRatio={false} primaryColor={theme.palette.weight.main} title="Weight" unit="gr" maxValue={100} />)}
-          </Box>
-        </Grid>
-        <Grid item xs={6} sx={{ gap: '8px' }}>
-          <Box sx={{ border: `0.1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'flex-start', position: 'relative', borderRadius: '16px', width: '100%', height: '100%', padding: '0px', backgroundColor: '#292929' }}>
+    <div className="container mx-auto pt-2 px-2">
+      <div className="grid grid-cols-12 gap-2">
+        <div ref={boxRef} className="col-span-2 flex flex-col gap-2 rounded-2xl">
+          <div className="flex items-center justify-center p-2 rounded-2xl">
+            <GaugeLiquid value={sensorData.waterLvl} radius={boxWidth} />
+          </div>
+          <div className="flex items-center justify-center p-2 rounded-2xl">
+            <GaugeChart value={sensorData.pressure} maintainAspectRatio={false} primaryColor={chartColor('pressure')} title="Pressure" unit="bar" maxValue={14} />
+          </div>
+          <div className="flex items-center justify-center p-2 rounded-2xl">
+            <GaugeChart value={sensorData.weight} maintainAspectRatio={false} primaryColor={chartColor('weight')} title="Weight" unit="gr" maxValue={100} />
+          </div>
+        </div>
+
+        <div className="col-span-6">
+          <div className="rounded-2xl border bg-[#292929] h-full">
             <ProfileList
               profiles={profiles}
               activeIndex={sensorData.activeProfile}
               onSelect={handleSelectProfile}
             />
-          </Box>
-        </Grid>
-        <Grid item xs={4}>
-          <Box sx={{ border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '0px' }}>
-            <Box sx={{ justifyContent: 'space-evenly', alignItems: 'center', display: 'flex', border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '180px', width: '100%', padding: '0px', backgroundColor: '#292929' }}>
-              {boxedComponent(<GaugeChart value={sensorData.temperature} maxValue={sensorData.targetTemperature || 100} maintainAspectRatio primaryColor={theme.palette.temperature.main} unit="°C" />)}
-            </Box>
-            <Box sx={{ justifyContent: 'center', alignItems: 'center', display: 'flex', border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '10px', gap: '25px' }}>
-              <TextField variant="standard" sx={{ width: '10ch' }} id="target-temp" label="Target" value={`${Math.round(sensorData.targetTemperature)}°C`} InputProps={{ readOnly: true }} />
-              <Fab color="primary" aria-label="add">
-                <RemoveIcon />
-              </Fab>
-              <Fab color="primary" aria-label="rem">
-                <AddIcon />
-              </Fab>
-            </Box>
-            <Box sx={{ justifyContent: 'center', alignItems: 'center', display: 'flex', border: `2px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '2px', gap: '0px', backgroundColor: '#292929' }} />
-            <Box sx={{ justifyContent: 'center', alignItems: 'center', display: 'flex', border: `0px solid ${theme.palette.divider}`, position: 'relative', borderRadius: '16px', width: '100%', padding: '10px', gap: '25px' }}>
-              <TextField variant="standard" sx={{ width: '10ch' }} id="scales" label="Scales" defaultValue="0.0g" InputProps={{ readOnly: true }} />
-              <Button variant="outlined" startIcon={<ScaleIcon />} sx={{ width: '40%' }}>
-                Tare
-              </Button>
-            </Box>
-          </Box>
-        </Grid>
-      </Grid>
-    </Container>
+          </div>
+        </div>
+
+        <div className="col-span-4 flex flex-col gap-2">
+          <div className="rounded-full bg-[#292929] flex items-center justify-center p-2">
+            <GaugeChart value={sensorData.temperature} maxValue={sensorData.targetTemperature || 100} maintainAspectRatio primaryColor={chartColor('temperature')} unit="°C" />
+          </div>
+
+          <div className="flex items-center justify-center gap-6 p-2">
+            <div className="w-24">
+              <Label htmlFor="target-temp" className="text-xs text-muted-foreground">Target</Label>
+              <Input
+                id="target-temp"
+                readOnly
+                value={`${Math.round(sensorData.targetTemperature)}°C`}
+                className="h-8"
+              />
+            </div>
+            <Button variant="default" size="icon" className="rounded-full" aria-label="decrement target">
+              <Minus />
+            </Button>
+            <Button variant="default" size="icon" className="rounded-full" aria-label="increment target">
+              <Plus />
+            </Button>
+          </div>
+
+          <div className="border-2 border-border rounded-2xl bg-[#292929] h-2" />
+
+          <div className="flex items-center justify-center gap-6 p-2">
+            <div className="w-24">
+              <Label htmlFor="scales" className="text-xs text-muted-foreground">Scales</Label>
+              <Input id="scales" readOnly defaultValue="0.0g" className="h-8" />
+            </div>
+            <Button variant="outline" className="w-2/5">
+              <Scale />
+              Tare
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

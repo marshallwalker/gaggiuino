@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import {
-  Card, Container, useTheme, Typography, CardContent, CardActions, Paper, TextareaAutosize, Alert,
-} from '@mui/material';
-import IconButton from '@mui/material/IconButton';
-import QrCodeIcon from '@mui/icons-material/QrCode';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
-import AutoGraphIcon from '@mui/icons-material/AutoGraph';
-import DeleteIcon from '@mui/icons-material/Delete';
-import TextField from '@mui/material/TextField';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
-import Grid from '@mui/material/Grid';
-import ProfileChart from '../../components/chart/ProfileChart';
-import { Profile, ProfileRaw } from '../../models/profile';
+  QrCode, Upload, Plus, Minus, LineChart, Trash2,
+} from 'lucide-react';
+import {
+  Card, CardContent, CardFooter, CardHeader, CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import ProfileChart from '@/components/chart/ProfileChart';
+import { Profile, ProfileRaw } from '@/models/profile';
 
 interface BuilderElement {
   id: number;
@@ -31,15 +31,13 @@ const initialElements: BuilderElement[] = [
 ];
 
 export default function Profiles() {
-  const theme = useTheme();
-
   const [elements, setElements] = useState<BuilderElement[]>(initialElements);
   const [nextId, setNextId] = useState(7);
   const [error, setError] = useState<string | undefined>(undefined);
   const [profile, setProfile] = useState<Profile>(new Profile([]));
 
   const handleAddRow = () => {
-    const newElements: BuilderElement[] = [
+    setElements([
       ...elements,
       { id: nextId, type: 'select', value: '' },
       { id: nextId + 1, type: 'select', value: '' },
@@ -47,9 +45,17 @@ export default function Profiles() {
       { id: nextId + 3, type: 'text', value: '' },
       { id: nextId + 4, type: 'text', value: '' },
       { id: nextId + 5, type: 'text', value: '' },
-    ];
-    setElements(newElements);
+    ]);
     setNextId(nextId + 6);
+  };
+
+  const handleRemoveRow = () => {
+    setElements(elements.slice(0, -6));
+  };
+
+  const handleRemoveAll = () => {
+    setElements(initialElements);
+    setNextId(7);
   };
 
   const updateProfile = (value: string) => {
@@ -61,125 +67,104 @@ export default function Profiles() {
     }
   };
 
-  const handleRemoveRow = () => {
-    const newElements = [...elements];
-    for (let i = 0; i < 6; i++) {
-      newElements.pop();
-    }
-    setElements(newElements);
+  const handleSelectChange = (value: string, id: number) => {
+    setElements(elements.map((el) => (el.id === id ? { ...el, value } : el)));
   };
 
-  const handleRemoveAll = () => {
-    setElements(initialElements);
-    setNextId(7);
-  };
-
-  const handleSelectChange = (event: SelectChangeEvent<string>, id: number) => {
-    const updatedElements = elements.map((element) => {
-      if (element.id === id) {
-        return { ...element, value: event.target.value };
-      }
-      return element;
-    });
-    setElements(updatedElements);
+  const handleTextChange = (value: string, id: number) => {
+    setElements(elements.map((el) => (el.id === id ? { ...el, value } : el)));
   };
 
   return (
-    <div>
-      <Container sx={{ mt: theme.spacing(2) }}>
-        <Card sx={{ mt: theme.spacing(2) }}>
-          <Grid container columns={{ xs: 1, sm: 2 }}>
-            <Grid item xs={1}>
-              <CardContent>
-                <Typography gutterBottom variant="h5">Load Profile</Typography>
-              </CardContent>
-              <CardActions>
-                <IconButton style={{ float: 'right' }} color="primary" aria-label="upload bin" component="label" sx={{ ml: theme.spacing(3) }}>
-                  <input hidden accept=".bin" type="file" />
-                  <UploadFileIcon fontSize="large" />
-                </IconButton>
-                <IconButton style={{ float: 'right' }} color="primary" aria-label="upload qr" component="label">
-                  <input hidden accept=".png" type="file" />
-                  <QrCodeIcon fontSize="large" />
-                </IconButton>
-              </CardActions>
-            </Grid>
-          </Grid>
-        </Card>
-      </Container>
-      <Container sx={{ mt: theme.spacing(2) }}>
-        <Card sx={{ mt: theme.spacing(2) }}>
-          <Grid container columns={{ xs: 1, sm: 1 }}>
-            <Grid item xs={1}>
-              <CardContent>
-                <Typography gutterBottom variant="h5">
-                  Build Profile
-                  <IconButton style={{ float: 'right' }} onClick={handleRemoveAll} color="primary" aria-label="remove all" component="label" sx={{ ml: theme.spacing(3) }}>
-                    <DeleteIcon fontSize="large" />
-                  </IconButton>
-                  <IconButton style={{ float: 'right' }} onClick={handleRemoveRow} color="primary" aria-label="remove row" component="label" sx={{ ml: theme.spacing(3) }}>
-                    <RemoveIcon fontSize="large" />
-                  </IconButton>
-                  <IconButton style={{ float: 'right' }} onClick={handleAddRow} color="primary" aria-label="add row" component="label" sx={{ ml: theme.spacing(3) }}>
-                    <AddIcon fontSize="large" />
-                  </IconButton>
-                  <IconButton style={{ float: 'right' }} color="primary" aria-label="auto graph" component="label" sx={{ ml: theme.spacing(3) }}>
-                    <AutoGraphIcon fontSize="large" />
-                  </IconButton>
-                  <div>
-                    <Grid container spacing={2}>
-                      {elements.map((element) => {
-                        if (element.type === 'select') {
-                          return (
-                            <Grid item xs={6} key={element.id}>
-                              <Select
-                                value={element.value}
-                                onChange={(event) => handleSelectChange(event, element.id)}
-                              >
-                                <option value="1">Preinfusion</option>
-                                <option value="2">Soak</option>
-                                <option value="3">Flow</option>
-                                <option value="4">Pressure</option>
-                              </Select>
-                            </Grid>
-                          );
-                        }
-                        return (
-                          <Grid item xs={3} key={element.id}>
-                            <TextField value={element.value} />
-                          </Grid>
-                        );
-                      })}
-                    </Grid>
-                  </div>
-                </Typography>
-              </CardContent>
-            </Grid>
-          </Grid>
-        </Card>
-      </Container>
-      <Container sx={{ mt: theme.spacing(2) }}>
-        <Paper sx={{ mt: theme.spacing(2), p: theme.spacing(2) }}>
-          <Typography variant="h5" sx={{ mb: theme.spacing(2) }}>Profile syntax playground</Typography>
-          <Grid container columns={{ xs: 1, sm: 3 }} spacing={2}>
-            <Grid item xs={1} sm={3}>
-              <Alert severity={error ? 'error' : 'success'}>
-                {error || 'Nice syntax!'}
-              </Alert>
-            </Grid>
-            <Grid item xs={1} sm={1}>
-              <TextareaAutosize
-                minRows={15}
+    <div className="container mx-auto px-4 mt-2 space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Load Profile</CardTitle>
+        </CardHeader>
+        <CardFooter>
+          <Button variant="ghost" size="icon" asChild>
+            <label htmlFor="profile-bin" aria-label="Upload .bin profile" className="cursor-pointer">
+              <Upload />
+              <input id="profile-bin" hidden accept=".bin" type="file" />
+            </label>
+          </Button>
+          <Button variant="ghost" size="icon" asChild>
+            <label htmlFor="profile-qr" aria-label="Upload QR" className="cursor-pointer">
+              <QrCode />
+              <input id="profile-qr" hidden accept=".png" type="file" />
+            </label>
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-xl">Build Profile</CardTitle>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={handleRemoveAll} aria-label="Remove all">
+              <Trash2 />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleRemoveRow} aria-label="Remove row">
+              <Minus />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleAddRow} aria-label="Add row">
+              <Plus />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label="Auto graph">
+              <LineChart />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-12 gap-2">
+            {elements.map((element) => (element.type === 'select' ? (
+              <div key={element.id} className="col-span-6">
+                <Select value={element.value} onValueChange={(v) => handleSelectChange(v, element.id)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Phase type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Preinfusion</SelectItem>
+                    <SelectItem value="2">Soak</SelectItem>
+                    <SelectItem value="3">Flow</SelectItem>
+                    <SelectItem value="4">Pressure</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div key={element.id} className="col-span-3">
+                <Input
+                  value={element.value}
+                  onChange={(e) => handleTextChange(e.target.value, element.id)}
+                />
+              </div>
+            )))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Profile syntax playground</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Alert variant={error ? 'destructive' : 'default'}>
+            <AlertDescription>{error || 'Nice syntax!'}</AlertDescription>
+          </Alert>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-1">
+              <Textarea
+                rows={15}
                 onChange={(evt) => updateProfile(evt.target.value)}
-                style={{ width: '100%', backgroundColor: theme.palette.background.paper, color: theme.palette.text.secondary }}
+                className="font-mono text-xs h-full min-h-[24rem]"
               />
-            </Grid>
-            <Grid item xs={1} sm={2} position="relative" height="400">
+            </div>
+            <div className="sm:col-span-2 relative h-[400px]">
               <ProfileChart profile={profile} />
-            </Grid>
-          </Grid>
-        </Paper>
-      </Container>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

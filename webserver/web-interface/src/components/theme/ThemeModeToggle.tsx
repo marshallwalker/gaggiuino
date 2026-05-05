@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { DarkModeToggle } from '@anatoliygatt/dark-mode-toggle';
-import { useTheme } from '@mui/material';
-import type { ThemeMode } from './AppTheme';
+
+export type ThemeMode = 'light' | 'dark';
 
 export interface ThemeModeContextValue {
   themeMode: ThemeMode;
@@ -13,23 +13,25 @@ export const ThemeModeContext = createContext<ThemeModeContextValue>({
   changeThemeMode: () => {},
 });
 
+const TRACK = '#111';
+const THUMB = '#ef4e2b';
+
 export default function ThemeModeToggle() {
   const modeContext = useContext(ThemeModeContext);
   const [mode, setMode] = useState<ThemeMode>(modeContext.themeMode);
-  const theme = useTheme();
 
   return (
     <DarkModeToggle
       mode={mode}
       size="sm"
-      inactiveTrackColor={theme.palette.background.default}
-      inactiveTrackColorOnHover={theme.palette.background.default}
-      inactiveTrackColorOnActive={theme.palette.background.default}
-      activeTrackColor={theme.palette.background.default}
-      activeTrackColorOnHover={theme.palette.background.default}
-      activeTrackColorOnActive={theme.palette.background.default}
-      inactiveThumbColor={theme.palette.primary.main}
-      activeThumbColor={theme.palette.primary.main}
+      inactiveTrackColor={TRACK}
+      inactiveTrackColorOnHover={TRACK}
+      inactiveTrackColorOnActive={TRACK}
+      activeTrackColor={TRACK}
+      activeTrackColorOnHover={TRACK}
+      activeTrackColorOnActive={TRACK}
+      inactiveThumbColor={THUMB}
+      activeThumbColor={THUMB}
       onChange={(newMode: ThemeMode) => {
         setMode(newMode);
         modeContext.changeThemeMode(newMode);

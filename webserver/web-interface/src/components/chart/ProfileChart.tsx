@@ -12,7 +12,7 @@ import {
   Legend,
   ChartData,
 } from 'chart.js';
-import { useTheme, alpha, Theme } from '@mui/material';
+import { alphaHex, chartColor } from '@/lib/chartColors';
 import getShotChartConfig from './ChartConfig';
 import { Phase, PhaseTypes, Profile } from '../../models/profile';
 
@@ -50,11 +50,7 @@ interface ProfileSeries {
 }
 
 function profileToDatasets(profile: Profile): ProfileSeries {
-  const data: ProfileSeries = {
-    labels: [],
-    pressureData: [],
-    flowData: [],
-  };
+  const data: ProfileSeries = { labels: [], pressureData: [], flowData: [] };
 
   let phaseStartTime = 0;
   profile.phases.forEach((phase) => {
@@ -82,24 +78,26 @@ function profileToDatasets(profile: Profile): ProfileSeries {
   return data;
 }
 
-function mapToChartData(profile: Profile, theme: Theme): ChartData<'line'> {
+function mapToChartData(profile: Profile): ChartData<'line'> {
   const data = profileToDatasets(profile);
+  const pressure = chartColor('pressure');
+  const flow = chartColor('flow');
   return {
     labels: data.labels,
     datasets: [
       {
         label: 'Pressure',
         data: data.pressureData,
-        backgroundColor: alpha(theme.palette.pressure.main, 0.8),
-        borderColor: theme.palette.pressure.main,
+        backgroundColor: alphaHex(pressure, 0.8),
+        borderColor: pressure,
         tension: 0.11,
         yAxisID: 'y2',
       },
       {
         label: 'Flow',
         data: data.flowData,
-        backgroundColor: alpha(theme.palette.flow.main, 0.8),
-        borderColor: theme.palette.flow.main,
+        backgroundColor: alphaHex(flow, 0.8),
+        borderColor: flow,
         tension: 0,
         yAxisID: 'y2',
       },
@@ -113,9 +111,8 @@ interface ProfileChartProps {
 
 export default function ProfileChart({ profile }: ProfileChartProps) {
   const chartRef = useRef(null);
-  const theme = useTheme();
-  const config = useMemo(() => getShotChartConfig(theme), [theme]);
-  const chartData = mapToChartData(profile, theme);
+  const config = useMemo(() => getShotChartConfig(), []);
+  const chartData = mapToChartData(profile);
 
   return (
     <Line

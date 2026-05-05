@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {
-  AppBar, Box, Dialog, IconButton, Stack, Toolbar,
-} from '@mui/material';
 import useWebSocket from 'react-use-websocket';
-import CloseIcon from '@mui/icons-material/Close';
-import Grid from '@mui/material/Grid';
+import { X } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
   apiHost, filterSocketMessage, MSG_TYPE_SHOT_DATA, ShotData, WsEnvelope,
 } from '../../models/api';
@@ -31,65 +29,45 @@ export default function ShotDialog({ open = false, setOpen }: ShotDialogProps) {
 
   useEffect(() => {
     const envelope = lastJsonMessage as WsEnvelope<ShotData> | null;
-    if (envelope === null) {
-      return;
-    }
+    if (envelope === null) return;
     setLatestShotSnapshot(envelope.data);
   }, [lastJsonMessage]);
 
   return (
-    <Dialog
-      fullScreen
-      open={open}
-      onClose={() => setOpen(false)}
-      PaperProps={{ elevation: 0 }}
-    >
-      <Stack direction="column" display="flex" alignItems="stretch" justifyContent="flex-start" height="100%" spacing={2}>
-        <AppBar sx={{ position: 'relative', display: 'flex', flexGrow: 0 }}>
-          <Toolbar>
-            <IconButton
-              edge="start"
-              color="inherit"
-              onClick={() => setOpen(false)}
-              aria-label="close"
-            >
-              <CloseIcon />
-            </IconButton>
-          </Toolbar>
-        </AppBar>
-
-        <Grid container columns={4} spacing={1} sx={{ flexGrow: 1 }}>
-          <Grid item xs={4} sm={3} display="flex" alignContent="stretch" flexGrow={1}>
-            <Box sx={{ position: 'relative', width: '100%' }}>
-              <ShotChart newDataPoint={latestShotSnapshot ?? undefined} />
-            </Box>
-          </Grid>
-          <Grid item xs={4} sm={1}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent
+        hideCloseButton
+        className="max-w-none w-screen h-screen p-0 rounded-none border-0 translate-x-0 translate-y-0 left-0 top-0 grid-rows-[auto_1fr] gap-0"
+      >
+        <div className="flex items-center bg-primary text-primary-foreground px-2 py-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+            className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+          >
+            <X />
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 p-2 overflow-auto">
+          <div className="sm:col-span-3 relative w-full min-h-[300px]">
+            <ShotChart newDataPoint={latestShotSnapshot ?? undefined} />
+          </div>
+          <div className="sm:col-span-1">
             {latestShotSnapshot && (
-            <Grid container columns={3} spacing={1}>
-              <Grid item xs={1} sm={3}>
-                <TimeStatBox timeInShot={latestShotSnapshot.timeInShot} sx={{ height: '100%' }} />
-              </Grid>
-              <Grid item xs={1} sm={3}>
-                <WeightStatBox shotWeight={latestShotSnapshot.shotWeight} sx={{ height: '100%' }} />
-              </Grid>
-              <Grid item xs={1} sm={3}>
-                <PressureStatBox pressure={latestShotSnapshot.pressure} target={latestShotSnapshot.targetPressure} sx={{ height: '100%' }} />
-              </Grid>
-              <Grid item xs={1} sm={3}>
-                <PumpFlowStatBox pumpFlow={latestShotSnapshot.pumpFlow} target={latestShotSnapshot.targetPumpFlow} sx={{ height: '100%' }} />
-              </Grid>
-              <Grid item xs={1} sm={3}>
-                <WeightFlowStatBox flow={latestShotSnapshot.weightFlow} target={latestShotSnapshot.targetPumpFlow} sx={{ height: '100%' }} />
-              </Grid>
-              <Grid item xs={1} sm={3}>
-                <TemperatureStatBox temperature={latestShotSnapshot.temperature} target={latestShotSnapshot.targetTemperature} sx={{ height: '100%' }} />
-              </Grid>
-            </Grid>
+              <div className="grid grid-cols-1 sm:grid-cols-1 gap-2">
+                <TimeStatBox timeInShot={latestShotSnapshot.timeInShot} />
+                <WeightStatBox shotWeight={latestShotSnapshot.shotWeight} />
+                <PressureStatBox pressure={latestShotSnapshot.pressure} target={latestShotSnapshot.targetPressure} />
+                <PumpFlowStatBox pumpFlow={latestShotSnapshot.pumpFlow} target={latestShotSnapshot.targetPumpFlow} />
+                <WeightFlowStatBox flow={latestShotSnapshot.weightFlow} target={latestShotSnapshot.targetPumpFlow} />
+                <TemperatureStatBox temperature={latestShotSnapshot.temperature} target={latestShotSnapshot.targetTemperature} />
+              </div>
             )}
-          </Grid>
-        </Grid>
-      </Stack>
+          </div>
+        </div>
+      </DialogContent>
     </Dialog>
   );
 }

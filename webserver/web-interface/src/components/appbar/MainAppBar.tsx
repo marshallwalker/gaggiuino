@@ -1,15 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import CoffeeIcon from '@mui/icons-material/Coffee';
-import TuneIcon from '@mui/icons-material/Tune';
-import SettingsIcon from '@mui/icons-material/Settings';
-import Box from '@mui/material/Box';
-import {
-  useTheme, Stack, AppBar, Toolbar, Fab, useMediaQuery, MenuItem, Button, Menu,
-} from '@mui/material';
+import { Coffee, Settings as SettingsIcon, SlidersHorizontal } from 'lucide-react';
 import useWebSocket from 'react-use-websocket';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import Logo from '../icons/Logo';
 import ThemeModeToggle from '../theme/ThemeModeToggle';
 import ShotDialog from '../../pages/home/ShotDialog';
@@ -19,137 +16,72 @@ import {
 
 interface MenuItemDef {
   label: string;
-  icon: React.ReactElement;
+  icon: React.ReactNode;
 }
 
 const menuItems: Record<string, MenuItemDef> = {
-  '/': { label: 'Home', icon: <CoffeeIcon /> },
-  '/profiles': { label: 'Profiles', icon: <TuneIcon /> },
-  '/settings': { label: 'Settings', icon: <SettingsIcon /> },
+  '/': { label: 'Home', icon: <Coffee className="h-4 w-4" /> },
+  '/profiles': { label: 'Profiles', icon: <SlidersHorizontal className="h-4 w-4" /> },
+  '/settings': { label: 'Settings', icon: <SettingsIcon className="h-4 w-4" /> },
 };
 
-interface LinkTabProps {
-  value: string;
-}
-
-function LinkTab(props: LinkTabProps) {
-  const { value: path } = props;
-  const navigate = useNavigate();
-  const location = useLocation();
-  const theme = useTheme();
-
-  const textColor = theme.palette.text.secondary;
-  const activeColor = theme.palette.mode === 'light' ? theme.palette.primary.contrastText : theme.palette.primary.main;
-  const id = path.replace('/', '');
-  const { label, icon } = menuItems[path];
-
-  return (
-    <Tab
-      {...props}
-      iconPosition="start"
-      id={`appbar-tab-${id}`}
-      sx={{ color: location.pathname === path ? activeColor : textColor, opacity: 1 }}
-      onClick={() => navigate(path)}
-      label={label}
-      icon={icon}
-    />
-  );
-}
-
-interface TabMenuProps {
+interface NavProps {
   activeItem: string;
   onChange: (value: string) => void;
-  activeColor: string;
 }
 
-function TabMenu({ activeItem, onChange, activeColor }: TabMenuProps) {
+function TabNav({ activeItem, onChange }: NavProps) {
   return (
-    <Tabs
-      value={activeItem}
-      onChange={(_event, value: string) => onChange(value)}
-      aria-label="Navigation tabs"
-      textColor="inherit"
-      TabIndicatorProps={{
-        style: {
-          backgroundColor: activeColor,
-        },
-      }}
-    >
-      {Object.keys(menuItems).map((item) => <LinkTab key={item} value={item} />)}
+    <Tabs value={activeItem} onValueChange={onChange} className="hidden sm:block">
+      <TabsList className="bg-transparent gap-1">
+        {Object.entries(menuItems).map(([path, item]) => (
+          <TabsTrigger key={path} value={path} className="text-primary-foreground/80 data-[state=active]:text-primary-foreground data-[state=active]:bg-primary-foreground/10">
+            {item.icon}
+            {item.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
     </Tabs>
   );
 }
 
-interface NavMenuProps {
-  activeItem: string;
-  onChange: (value: string) => void;
-}
-
-function NavMenu({ activeItem, onChange }: NavMenuProps) {
+function DropdownNav({ activeItem, onChange }: NavProps) {
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const theme = useTheme();
-
-  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleCloseMenu = () => {
-    setAnchorEl(null);
-  };
+  const active = menuItems[activeItem] ?? menuItems['/'];
 
   return (
-    <Box sx={{ flexGrow: 0 }}>
-      <Button
-        onClick={handleOpenMenu}
-        sx={{
-          color: theme.palette.primary.contrastText,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing(2),
-        }}
-      >
-        {menuItems[activeItem].icon}
-        {menuItems[activeItem].label}
-      </Button>
-      <Menu
-        id="menu-appbar"
-        anchorEl={anchorEl}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        keepMounted
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        open={Boolean(anchorEl)}
-        onClose={handleCloseMenu}
-      >
-        {Object.keys(menuItems).map((item) => (
-          <MenuItem
-            key={item}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing(2),
-            }}
-            onClick={() => {
-              handleCloseMenu();
-              onChange(item);
-              navigate(item);
-            }}
-          >
-            {menuItems[item].icon}
-            {menuItems[item].label}
-          </MenuItem>
-        ))}
-      </Menu>
-    </Box>
+    <div className="sm:hidden">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+            {active.icon}
+            {active.label}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {Object.entries(menuItems).map(([path, item]) => (
+            <DropdownMenuItem
+              key={path}
+              onSelect={() => {
+                onChange(path);
+                navigate(path);
+              }}
+            >
+              {item.icon}
+              {item.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
-function MainAppBar() {
-  const theme = useTheme();
+export default function MainAppBar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>(location.pathname || '/');
   const [shotDialogOpen, setShotDialogOpen] = useState(false);
-  const isBiggerScreen = useMediaQuery(theme.breakpoints.up('sm'));
   const { lastJsonMessage } = useWebSocket(`ws://${apiHost}/ws`, {
     share: true,
     retryOnError: true,
@@ -165,37 +97,28 @@ function MainAppBar() {
     }
   }, [lastJsonMessage]);
 
-  const activeColor = theme.palette.mode === 'light' ? theme.palette.primary.contrastText : theme.palette.primary.main;
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    navigate(value);
+  };
 
   return (
-    <AppBar sx={{ position: 'static' }} elevation={1}>
-      <Toolbar>
-        <Stack sx={{ display: 'flex', flexGrow: 1 }} direction="row" spacing={2} justifyContent="space-between" alignItems="center">
-          <Box sx={{ color: activeColor, alignContent: 'center' }}>
-            <Fab
-              onClick={() => setShotDialogOpen(true)}
-              size="medium"
-              sx={{
-                color: 'primary.main',
-                backgroundColor: 'background.default',
-                boxShadow: 0,
-                '&:hover': { boxShadow: 0, backgroundColor: 'background.default' },
-              }}
-            >
-              <Box height={30} sx={{ ml: '-4px' }}><Logo size={30} /></Box>
-            </Fab>
-          </Box>
-          {isBiggerScreen && (
-            <TabMenu activeItem={activeTab} activeColor={activeColor} onChange={setActiveTab} />
-          )}
-          {!isBiggerScreen && (<NavMenu activeItem={activeTab} onChange={setActiveTab} />)}
-          <ThemeModeToggle />
-        </Stack>
-      </Toolbar>
-      <Box />
+    <header className="bg-primary text-primary-foreground shadow-sm">
+      <div className="flex items-center gap-3 px-4 py-2">
+        <button
+          type="button"
+          onClick={() => setShotDialogOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-background text-primary shadow-sm hover:bg-background/90"
+          aria-label="Open shot view"
+        >
+          <Logo size={26} />
+        </button>
+        <div className="flex-1" />
+        <TabNav activeItem={activeTab} onChange={handleTabChange} />
+        <DropdownNav activeItem={activeTab} onChange={setActiveTab} />
+        <ThemeModeToggle />
+      </div>
       {shotDialogOpen && <ShotDialog open={shotDialogOpen} setOpen={setShotDialogOpen} />}
-    </AppBar>
+    </header>
   );
 }
-
-export default MainAppBar;

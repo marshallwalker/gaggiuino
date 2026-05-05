@@ -1,197 +1,139 @@
-import React, { CSSProperties, ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import {
-  Paper, Typography, useTheme, Box, Stack, SxProps, Theme,
-} from '@mui/material';
-import TemperatureIcon from '@mui/icons-material/DeviceThermostat';
-import TimerIcon from '@mui/icons-material/Timer';
-import ScaleIcon from '@mui/icons-material/Scale';
-import CompressIcon from '@mui/icons-material/Compress';
-import AirIcon from '@mui/icons-material/Air';
-import SportsScoreIcon from '@mui/icons-material/SportsScore';
+  Thermometer, Timer, Scale, ChevronsDown, Wind, Flag,
+} from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { chartColor } from '@/lib/chartColors';
 import { formatTimeInShot } from '../../models/api';
 
 function formatNumber(value: number | undefined, decimals = 1): string | undefined {
   return typeof value === 'number' ? value.toFixed(decimals) : undefined;
 }
 
-interface BaseBoxProps {
-  sx?: SxProps<Theme>;
-  style?: CSSProperties;
-}
-
-interface StatBoxProps extends BaseBoxProps {
+interface StatBoxProps {
   label: string;
   color: string;
   stat?: string | number;
   icon?: ReactNode;
   statTarget?: string | number;
   unit?: string;
+  className?: string;
 }
 
 export function StatBox({
-  label, color, stat, icon, statTarget, unit, sx, style,
+  label, color, stat, icon, statTarget, unit, className,
 }: StatBoxProps) {
-  const theme = useTheme();
   return (
-    <Paper sx={{ border: `2px solid ${color}`, padding: theme.spacing(1), ...sx }} style={style}>
-      <Stack direction="row" alignContent="stretch">
-        {icon && (
-          <Box display="flex" alignItems="center" color={color}>
-            {icon}
-          </Box>
+    <Card
+      className={cn('p-2 flex gap-2 items-stretch', className)}
+      style={{ borderColor: color, borderWidth: 2, color }}
+    >
+      {icon && <div className="flex items-center [&_svg]:size-5">{icon}</div>}
+      <div className="flex-1 flex flex-col text-right">
+        <div className="font-bold leading-tight">{label}</div>
+        <div className="leading-tight">{`${stat ?? '—'} ${unit || ''}`}</div>
+        {statTarget !== undefined && statTarget !== null && Number(statTarget) >= 0 && (
+          <div className="flex justify-end items-center gap-1 text-xs [&_svg]:size-3">
+            <Flag />
+            {`${statTarget} ${unit ?? ''}`}
+          </div>
         )}
-        <Box sx={{ flexGrow: 1 }}>
-          <Box>
-            <Typography color={color} align="right" sx={{ fontWeight: 'bold' }}>
-              {label}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography color={color} align="right">
-              {`${stat} ${unit || ''}`}
-            </Typography>
-          </Box>
-          {statTarget !== undefined && statTarget !== null && Number(statTarget) >= 0 && (
-            <Box display="flex" justifyContent="flex-end" alignItems="center" color={color}>
-              <SportsScoreIcon fontSize="small" />
-              {`${statTarget} ${unit ?? ''}`}
-            </Box>
-          )}
-        </Box>
-      </Stack>
-    </Paper>
+      </div>
+    </Card>
   );
 }
 
-interface TimeStatBoxProps extends BaseBoxProps {
-  timeInShot: number;
-}
+interface BaseProps { className?: string }
 
-export function TimeStatBox({ timeInShot, sx, style }: TimeStatBoxProps) {
-  const theme = useTheme();
+export function TimeStatBox({ timeInShot, className }: BaseProps & { timeInShot: number }) {
   return (
     <StatBox
       label="Time"
-      icon={<TimerIcon />}
-      color={theme.palette.text.primary}
+      icon={<Timer />}
+      color="hsl(var(--foreground))"
       stat={formatTimeInShot(timeInShot)}
-      sx={sx}
-      style={style}
+      className={className}
     />
   );
-}
-
-interface WeightStatBoxProps extends BaseBoxProps {
-  shotWeight: number;
-  target?: number;
 }
 
 export function WeightStatBox({
-  shotWeight, target, sx, style,
-}: WeightStatBoxProps) {
-  const theme = useTheme();
+  shotWeight, target, className,
+}: BaseProps & { shotWeight: number; target?: number }) {
   return (
     <StatBox
       label="Weight"
-      icon={<ScaleIcon />}
-      color={theme.palette.weight.main}
+      icon={<Scale />}
+      color={chartColor('weight')}
       stat={formatNumber(shotWeight)}
       statTarget={formatNumber(target)}
       unit="g"
-      sx={sx}
-      style={style}
+      className={className}
     />
   );
-}
-
-interface TemperatureStatBoxProps extends BaseBoxProps {
-  temperature: number;
-  target?: number;
 }
 
 export function TemperatureStatBox({
-  temperature, target, sx, style,
-}: TemperatureStatBoxProps) {
-  const theme = useTheme();
+  temperature, target, className,
+}: BaseProps & { temperature: number; target?: number }) {
   return (
     <StatBox
       label="Temp"
-      icon={<TemperatureIcon />}
-      color={theme.palette.temperature.main}
+      icon={<Thermometer />}
+      color={chartColor('temperature')}
       stat={formatNumber(temperature)}
       statTarget={formatNumber(target)}
       unit="°C"
-      sx={sx}
-      style={style}
+      className={className}
     />
   );
-}
-
-interface PumpFlowStatBoxProps extends BaseBoxProps {
-  pumpFlow: number;
-  target?: number;
 }
 
 export function PumpFlowStatBox({
-  pumpFlow, target, sx, style,
-}: PumpFlowStatBoxProps) {
-  const theme = useTheme();
+  pumpFlow, target, className,
+}: BaseProps & { pumpFlow: number; target?: number }) {
   return (
     <StatBox
       label="Pump Flow"
-      icon={<AirIcon />}
-      color={theme.palette.flow.main}
+      icon={<Wind />}
+      color={chartColor('flow')}
       stat={formatNumber(pumpFlow)}
       statTarget={formatNumber(target)}
       unit="ml/s"
-      sx={sx}
-      style={style}
+      className={className}
     />
   );
-}
-
-interface WeightFlowStatBoxProps extends BaseBoxProps {
-  flow: number;
-  target?: number;
 }
 
 export function WeightFlowStatBox({
-  flow, target, sx, style,
-}: WeightFlowStatBoxProps) {
-  const theme = useTheme();
+  flow, target, className,
+}: BaseProps & { flow: number; target?: number }) {
   return (
     <StatBox
       label="Weight Flow"
-      icon={<AirIcon />}
-      color={theme.palette.weightFlow.main}
+      icon={<Wind />}
+      color={chartColor('weight-flow')}
       stat={formatNumber(flow)}
       statTarget={formatNumber(target)}
       unit="ml/s"
-      sx={sx}
-      style={style}
+      className={className}
     />
   );
 }
 
-interface PressureStatBoxProps extends BaseBoxProps {
-  pressure: number;
-  target?: number;
-}
-
 export function PressureStatBox({
-  pressure, target, sx, style,
-}: PressureStatBoxProps) {
-  const theme = useTheme();
+  pressure, target, className,
+}: BaseProps & { pressure: number; target?: number }) {
   return (
     <StatBox
-      icon={<CompressIcon />}
+      icon={<ChevronsDown />}
       label="Pressure"
-      color={theme.palette.pressure.main}
+      color={chartColor('pressure')}
       stat={formatNumber(pressure)}
       statTarget={formatNumber(target)}
       unit="bar"
-      sx={sx}
-      style={style}
+      className={className}
     />
   );
 }

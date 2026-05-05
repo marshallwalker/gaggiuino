@@ -1,8 +1,6 @@
 import React from 'react';
-import {
-  List, ListItemButton, ListItemText, Typography, useTheme, Box,
-} from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { ProfileSummary } from '../../models/api';
 
 interface ProfileListProps {
@@ -12,54 +10,33 @@ interface ProfileListProps {
 }
 
 export default function ProfileList({ profiles, activeIndex, onSelect }: ProfileListProps) {
-  const theme = useTheme();
-
   return (
-    <Box sx={{ width: '100%', p: theme.spacing(1) }}>
-      <Typography
-        variant="overline"
-        sx={{ pl: theme.spacing(1), color: theme.palette.text.secondary }}
-      >
+    <div className="w-full p-2">
+      <div className="px-1 text-xs uppercase tracking-wider text-muted-foreground mb-1">
         Profiles
-      </Typography>
-      <List dense disablePadding>
+      </div>
+      <ul className="space-y-1">
         {profiles.map((profile) => {
           const isActive = profile.index === activeIndex;
           return (
-            <ListItemButton
-              key={profile.index}
-              selected={isActive}
-              onClick={() => onSelect(profile.index)}
-              sx={{
-                borderRadius: theme.shape.borderRadius,
-                mb: 0.5,
-                border: `1px solid ${isActive ? theme.palette.primary.main : 'transparent'}`,
-                backgroundColor: isActive ? `${theme.palette.primary.main}1A` : 'transparent',
-                '&.Mui-selected': {
-                  backgroundColor: `${theme.palette.primary.main}1A`,
-                },
-                '&.Mui-selected:hover': {
-                  backgroundColor: `${theme.palette.primary.main}33`,
-                },
-              }}
-            >
-              <ListItemText
-                primary={profile.name}
-                primaryTypographyProps={{
-                  color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
-                  fontWeight: isActive ? 600 : 400,
-                }}
-              />
-              {isActive && (
-                <CheckCircleIcon
-                  fontSize="small"
-                  sx={{ color: theme.palette.primary.main, ml: 1 }}
-                />
-              )}
-            </ListItemButton>
+            <li key={profile.index}>
+              <button
+                type="button"
+                onClick={() => onSelect(profile.index)}
+                className={cn(
+                  'w-full flex items-center justify-between rounded-md border px-3 py-1.5 text-sm text-left transition-colors',
+                  isActive
+                    ? 'border-primary bg-primary/10 text-primary font-semibold hover:bg-primary/20'
+                    : 'border-transparent text-foreground hover:bg-accent',
+                )}
+              >
+                <span>{profile.name}</span>
+                {isActive && <CheckCircle2 className="h-4 w-4 text-primary" />}
+              </button>
+            </li>
           );
         })}
-      </List>
-    </Box>
+      </ul>
+    </div>
   );
 }
