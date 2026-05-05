@@ -11,27 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useSensorData } from "@/hooks/use-sensor-data"
+import { useActiveProfile } from "@/hooks/use-active-profile"
 import {
-  getProfile,
   getProfileNames,
   setActiveProfile,
-  type ProfileData,
   type ProfileSummary,
 } from "@/lib/profiles-client"
 
+// Drop trailing zeros: 18.0 → "18", 18.5 → "18.5". Used for dose / target
+// weight where integers are common but half-grams happen.
+function fmtGrams(value: number): string {
+  return String(+value.toFixed(1))
+}
+
 export function ProfileSelector() {
-  const sensor = useSensorData()
+  const { data: activeData, loading: detailLoading, activeIndex } = useActiveProfile()
   const [names, setNames] = useState<ProfileSummary[]>([])
   const [namesLoading, setNamesLoading] = useState(true)
-  const [activeData, setActiveData] = useState<ProfileData | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
   const [switching, setSwitching] = useState(false)
-
-  // The active index lives in the sensor stream (1-indexed). We render the
-  // detail card based on this rather than a local "selectedProfile" state so
-  // out-of-band switches (Nextion tap, another browser tab) reflect here too.
-  const activeIndex = sensor.activeProfile
 
   useEffect(() => {
     let cancelled = false
@@ -50,39 +47,14 @@ export function ProfileSelector() {
     }
   }, [])
 
-  // Refetch the active profile's detail whenever the active index changes.
-  // The ESP caches per-index, so subsequent re-selections of the same
-  // profile are instant.
-  useEffect(() => {
-    if (!activeIndex || activeIndex < 1 || activeIndex > 5) return
-    let cancelled = false
-    setDetailLoading(true)
-    getProfile(activeIndex)
-      .then((data) => {
-        if (!cancelled) setActiveData(data)
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setActiveData(null)
-          toast.error(e instanceof Error ? e.message : "Failed to load profile detail")
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeIndex])
-
   async function handleSelect(value: string) {
     const idx = parseInt(value, 10)
     if (!Number.isFinite(idx) || idx === activeIndex) return
     setSwitching(true)
     try {
       await setActiveProfile(idx)
-      // sensor.activeProfile catches up on the next WS frame; the useEffect
-      // above refetches detail when it does.
+      // sensor.activeProfile catches up on the next WS frame; useActiveProfile
+      // refetches detail when it does.
       toast.success(`Switched to profile ${idx}`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Switch failed")
@@ -91,11 +63,11 @@ export function ProfileSelector() {
     }
   }
 
-  // Brew ratio: target weight ÷ dose. Only meaningful when the profile
-  // actually stops on weight; otherwise the target field is unused.
+  // Brew ratio displayed as dose:yield (e.g. "18g : 36g"). Only meaningful
+  // when the profile stops on weight; otherwise the target field is unused.
   const ratio =
     activeData && activeData.stopOnWeightState && activeData.shotDose > 0
-      ? (activeData.shotStopOnCustomWeight / activeData.shotDose).toFixed(1)
+      ? `${fmtGrams(activeData.shotDose)}g : ${fmtGrams(activeData.shotStopOnCustomWeight)}g`
       : null
 
   return (
@@ -160,7 +132,7 @@ export function ProfileSelector() {
                     Target Weight
                   </p>
                   <p className="text-sm font-medium text-foreground mt-0.5">
-                    {activeData.shotStopOnCustomWeight.toFixed(1)} g
+                    {fmtGrams(activeData.shotStopOnCustomWeight)} g
                   </p>
                 </div>
                 <div className="bg-secondary rounded-lg p-2">
@@ -168,7 +140,7 @@ export function ProfileSelector() {
                     Brew Ratio
                   </p>
                   <p className="text-sm font-medium text-foreground mt-0.5">
-                    {ratio ? `1 : ${ratio}` : "—"}
+                    {ratio ?? "—"}
                   </p>
                 </div>
               </div>

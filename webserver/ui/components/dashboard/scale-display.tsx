@@ -6,22 +6,27 @@ import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useSensorData } from "@/hooks/use-sensor-data"
+import { useActiveProfile } from "@/hooks/use-active-profile"
 import { tareScales } from "@/lib/scales-client"
-
-// Hardcoded reference dose for the brew-ratio readout. The active profile's
-// shotDose isn't currently exposed over the WS sensor stream — when it is,
-// swap this for the real value.
-const REFERENCE_DOSE = 18
-const TARGET_WEIGHT = 36
 
 export function ScaleDisplay() {
   const sensor = useSensorData()
+  const { data: profile } = useActiveProfile()
   const [taring, setTaring] = useState(false)
 
   // STM clamps weight below 0.1g to 0.0g already (the noise-floor fix
   // documented in the README). Keep the display non-negative defensively
   // in case of floating-point rounding from JSON.
   const weight = Math.max(0, sensor.weight)
+
+  // Progress bar target comes from the active profile's stop-on-weight
+  // setting. If the profile doesn't stop on weight, there's no meaningful
+  // target so we hide the bar.
+  const targetWeight =
+    profile && profile.stopOnWeightState && profile.shotStopOnCustomWeight > 0
+      ? profile.shotStopOnCustomWeight
+      : null
+  const progress = targetWeight ? Math.min((weight / targetWeight) * 100, 100) : 0
 
   const handleTare = async () => {
     setTaring(true)
@@ -36,9 +41,6 @@ export function ScaleDisplay() {
       setTimeout(() => setTaring(false), 500)
     }
   }
-
-  const ratio = weight > 0 ? (weight / REFERENCE_DOSE).toFixed(1) : "0.0"
-  const progress = Math.min((weight / TARGET_WEIGHT) * 100, 100)
 
   return (
     <Card className="bg-card border-border">
@@ -73,25 +75,21 @@ export function ScaleDisplay() {
           </div>
         </div>
 
-        {/* Progress to target */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Progress to {TARGET_WEIGHT}g</span>
-            <span>{progress.toFixed(0)}%</span>
+        {/* Progress to target — only when the active profile stops on weight */}
+        {targetWeight !== null && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Progress to {(+targetWeight.toFixed(1))}g</span>
+              <span>{progress.toFixed(0)}%</span>
+            </div>
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
-          <div className="h-2 bg-secondary rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Ratio display */}
-        <div className="mt-4 pt-3 border-t border-border flex justify-between items-center">
-          <span className="text-xs text-muted-foreground">Brew Ratio (1:{ratio})</span>
-          <span className="text-sm font-medium text-foreground">{REFERENCE_DOSE}g : {weight.toFixed(1)}g</span>
-        </div>
+        )}
       </CardContent>
     </Card>
   )
