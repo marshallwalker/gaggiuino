@@ -17,6 +17,7 @@ void wsCleanup();
 void wsSendSensorStateSnapshotToClients(SensorStateSnapshot& snapshot);
 void wsSendShotSnapshotToClients(ShotSnapshot& snapshot);
 void wsSendProfileNamesSnapshotToClients(const ProfileNamesSnapshot& snapshot);
+void wsSendScalesSnapshotToClients(const ScalesSnapshot& snapshot);
 void wsSendLog(std::string log, std::string source = "webserver");
 const std::deque<LogEntry>& wsGetLogHistory();
 

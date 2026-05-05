@@ -39,11 +39,34 @@ enum class McuCommsMessageType : uint8_t {
   MCUC_CMD_SELECT_PROFILE = 14,    // ESP -> STM: switch active profile (1-indexed)
   MCUC_LOG_RECORD = 15,            // STM -> ESP: pre-formatted log line
   MCUC_CMD_CALIBRATE_TOF = 16,     // ESP -> STM: calibrate ToF endpoint (payload: TofCalibrationTarget)
+
+  MCUC_DATA_SCALES_SNAPSHOT = 17,  // STM -> ESP: scales calibration snapshot (raw + factors + weight)
+  MCUC_CMD_SCALES_TARE = 18,       // ESP -> STM: zero the load cells (web-initiated, distinct from remote-scales tare)
+  MCUC_CMD_SCALES_SET_FACTORS = 19,// ESP -> STM: set + persist new calibration factors {f1, f2}
 };
 
 enum class TofCalibrationTarget : uint8_t {
   TOF_CALIBRATE_FULL = 1,
   TOF_CALIBRATE_EMPTY = 2,
+};
+
+// Live snapshot of the load-cell state, sent from STM to ESP at low frequency
+// (~4 Hz) so the web UI can render raw counts per cell, the converted weight,
+// and the persisted calibration factors during scale calibration.
+struct ScalesSnapshot {
+  bool present;        // hardware scales connected
+  long raw1;           // raw HX711 reading, cell 1 (after offset/tare subtraction)
+  long raw2;           // raw HX711 reading, cell 2
+  float weight;        // converted total weight in grams (raw / factor, summed)
+  float factor1;       // current cell-1 calibration factor
+  float factor2;       // current cell-2 calibration factor
+};
+
+// Payload for MCUC_CMD_SCALES_SET_FACTORS — both cells set together so the
+// STM can persist atomically.
+struct ScalesFactors {
+  float factor1;
+  float factor2;
 };
 
 #define LOG_RECORD_LEN 128
@@ -81,6 +104,9 @@ private:
   using SelectProfileCommandCallback = std::function<void(uint8_t)>;
   using LogRecordReceivedCallback = std::function<void(LogSnapshot&)>;
   using CalibrateTofCommandCallback = std::function<void(TofCalibrationTarget)>;
+  using ScalesSnapshotReceivedCallback = std::function<void(ScalesSnapshot&)>;
+  using ScalesTareCommandCallback = std::function<void()>;
+  using ScalesSetFactorsCommandCallback = std::function<void(ScalesFactors)>;
 
   uint32_t lastByteReceived = 0;
   uint32_t lastHeartbeatSent = 0;
@@ -97,6 +123,9 @@ private:
   SelectProfileCommandCallback selectProfileCommandCallback = nullptr;
   LogRecordReceivedCallback logRecordCallback = nullptr;
   CalibrateTofCommandCallback calibrateTofCommandCallback = nullptr;
+  ScalesSnapshotReceivedCallback scalesSnapshotCallback = nullptr;
+  ScalesTareCommandCallback scalesTareCommandCallback = nullptr;
+  ScalesSetFactorsCommandCallback scalesSetFactorsCommandCallback = nullptr;
   Stream* debugPort = nullptr;
   size_t packetSize;
 
@@ -128,6 +157,9 @@ private:
   void selectProfileCommandReceived(uint8_t index) const;
   void logRecordReceived(LogSnapshot& snapshot) const;
   void calibrateTofCommandReceived(TofCalibrationTarget target) const;
+  void scalesSnapshotReceived(ScalesSnapshot& snapshot) const;
+  void scalesTareCommandReceived() const;
+  void scalesSetFactorsCommandReceived(ScalesFactors factors) const;
 
 public:
   void begin(Stream& serial, uint32_t waitConnectionMillis = 0, size_t packetSize = MAX_DATA_PER_PACKET_DEFAULT);
@@ -143,6 +175,9 @@ public:
   void setSelectProfileCommandCallback(SelectProfileCommandCallback callback);
   void setLogRecordReceivedCallback(LogRecordReceivedCallback callback);
   void setCalibrateTofCommandCallback(CalibrateTofCommandCallback callback);
+  void setScalesSnapshotReceivedCallback(ScalesSnapshotReceivedCallback callback);
+  void setScalesTareCommandCallback(ScalesTareCommandCallback callback);
+  void setScalesSetFactorsCommandCallback(ScalesSetFactorsCommandCallback callback);
 
   void sendShotData(const ShotSnapshot& snapshot);
   void sendProfile(Profile& profile);
@@ -155,6 +190,9 @@ public:
   void sendSelectProfile(uint8_t index);
   void sendLogRecord(const LogSnapshot& snapshot);
   void sendCalibrateTof(TofCalibrationTarget target);
+  void sendScalesSnapshot(const ScalesSnapshot& snapshot);
+  void sendScalesTare();
+  void sendScalesSetFactors(ScalesFactors factors);
 
   bool isConnected();
   void readDataAndTick();

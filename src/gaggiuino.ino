@@ -142,6 +142,24 @@ void loop(void) {
   currentState.activeProfile = runningCfg.activeProfile + 1; // 1-indexed for UI
   espCommsSendSensorData(currentState);
 
+  // Throttled scales snapshot for the web calibration UI. Only built when
+  // hardware scales are present; otherwise the UI shows "no scales detected".
+  if (currentState.scalesPresent) {
+    long raw[2] = {0, 0};
+    scalesGetRawValues(raw);
+    float f1 = 1.f, f2 = 1.f;
+    scalesGetFactors(&f1, &f2);
+    ScalesSnapshot scalesSnapshot = {
+      .present = true,
+      .raw1 = raw[0],
+      .raw2 = raw[1],
+      .weight = currentState.weight,
+      .factor1 = f1,
+      .factor2 = f2,
+    };
+    espCommsSendScalesSnapshot(scalesSnapshot);
+  }
+
   // Push profile names whenever the ESP connection comes up (initial boot
   // and any reconnect after the ESP reboots). Rising-edge so we don't
   // hammer the link on every loop iteration.
@@ -807,6 +825,33 @@ void onCalibrateTofReceived(TofCalibrationTarget target) {
   if (!eepromWrite(runningCfg)) {
     LOG_ERROR("ToF calibration rejected by eepromWrite (endpoints out of range or empty <= full)");
     runningCfg = eepromGetCurrentValues(); // roll back the in-memory copy
+  }
+}
+
+void onScalesTareReceived() {
+  LOG_INFO("Scales tare requested via web UI");
+  // Defer to the existing tarePending path so the tare runs in lock-step with
+  // sensorsReadWeight rather than racing it from a comms callback.
+  currentState.tarePending = true;
+}
+
+void onScalesSetFactorsReceived(ScalesFactors factors) {
+  // Reject obviously bogus values - factor of 0 or negative would divide by
+  // zero / produce nonsense and brick the live weight reading.
+  if (!isfinite(factors.factor1) || !isfinite(factors.factor2)
+   || factors.factor1 <= 0.f || factors.factor2 <= 0.f) {
+    LOG_ERROR("Scales factors rejected (f1=%.3f f2=%.3f) - must be > 0",
+      (double)factors.factor1, (double)factors.factor2);
+    return;
+  }
+  LOG_INFO("Scales factors set via web UI: f1=%.3f f2=%.3f",
+    (double)factors.factor1, (double)factors.factor2);
+  scalesUpdateFactors(factors.factor1, factors.factor2);
+  runningCfg.scalesF1 = (int)factors.factor1;
+  runningCfg.scalesF2 = (int)factors.factor2;
+  if (!eepromWrite(runningCfg)) {
+    LOG_ERROR("Persisting scales factors to EEPROM failed");
+    runningCfg = eepromGetCurrentValues();
   }
 }
 

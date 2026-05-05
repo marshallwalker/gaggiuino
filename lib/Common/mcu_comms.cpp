@@ -172,6 +172,24 @@ void McuComms::calibrateTofCommandReceived(TofCalibrationTarget target) const {
   }
 }
 
+void McuComms::scalesSnapshotReceived(ScalesSnapshot& snapshot) const {
+  if (scalesSnapshotCallback) {
+    scalesSnapshotCallback(snapshot);
+  }
+}
+
+void McuComms::scalesTareCommandReceived() const {
+  if (scalesTareCommandCallback) {
+    scalesTareCommandCallback();
+  }
+}
+
+void McuComms::scalesSetFactorsCommandReceived(ScalesFactors factors) const {
+  if (scalesSetFactorsCommandCallback) {
+    scalesSetFactorsCommandCallback(factors);
+  }
+}
+
 void McuComms::responseReceived(McuCommsResponse& response) const {
   if (responseReceivedCallback) {
     responseReceivedCallback(response);
@@ -282,6 +300,18 @@ void McuComms::setCalibrateTofCommandCallback(CalibrateTofCommandCallback callba
   calibrateTofCommandCallback = callback;
 }
 
+void McuComms::setScalesSnapshotReceivedCallback(ScalesSnapshotReceivedCallback callback) {
+  scalesSnapshotCallback = callback;
+}
+
+void McuComms::setScalesTareCommandCallback(ScalesTareCommandCallback callback) {
+  scalesTareCommandCallback = callback;
+}
+
+void McuComms::setScalesSetFactorsCommandCallback(ScalesSetFactorsCommandCallback callback) {
+  scalesSetFactorsCommandCallback = callback;
+}
+
 void McuComms::setResponseReceivedCallback(ResponseReceivedCallback callback) {
   responseReceivedCallback = callback;
 }
@@ -354,6 +384,24 @@ void McuComms::sendCalibrateTof(TofCalibrationTarget target) {
   uint8_t payload = static_cast<uint8_t>(target);
   uint16_t messageSize = transfer.txObj(payload);
   transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_CALIBRATE_TOF));
+}
+
+void McuComms::sendScalesSnapshot(const ScalesSnapshot& snapshot) {
+  if (!isConnected()) return;
+  uint16_t messageSize = transfer.txObj(snapshot);
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_DATA_SCALES_SNAPSHOT));
+}
+
+void McuComms::sendScalesTare() {
+  if (!isConnected()) return;
+  uint16_t messageSize = transfer.txObj(static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_SCALES_TARE));
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_SCALES_TARE));
+}
+
+void McuComms::sendScalesSetFactors(ScalesFactors factors) {
+  if (!isConnected()) return;
+  uint16_t messageSize = transfer.txObj(factors);
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_SCALES_SET_FACTORS));
 }
 
 void McuComms::readDataAndTick() {
@@ -446,6 +494,22 @@ void McuComms::readDataAndTick() {
       uint8_t target = 0;
       transfer.rxObj(target);
       calibrateTofCommandReceived(static_cast<TofCalibrationTarget>(target));
+      break;
+    } case McuCommsMessageType::MCUC_DATA_SCALES_SNAPSHOT: {
+      log("Received a scales snapshot packet\n");
+      ScalesSnapshot snapshot = {};
+      transfer.rxObj(snapshot);
+      scalesSnapshotReceived(snapshot);
+      break;
+    } case McuCommsMessageType::MCUC_CMD_SCALES_TARE: {
+      log("Received a scales-tare command\n");
+      scalesTareCommandReceived();
+      break;
+    } case McuCommsMessageType::MCUC_CMD_SCALES_SET_FACTORS: {
+      log("Received a scales-set-factors command\n");
+      ScalesFactors factors = {};
+      transfer.rxObj(factors);
+      scalesSetFactorsCommandReceived(factors);
       break;
     }
     default:

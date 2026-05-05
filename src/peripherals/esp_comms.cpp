@@ -28,6 +28,8 @@ void espCommsInit() {
   McuCommsSingleton::getInstance().setRemoteScalesDisconnectedCallback(onRemoteScalesDisconnected);
   McuCommsSingleton::getInstance().setSelectProfileCommandCallback(onSelectProfileReceived);
   McuCommsSingleton::getInstance().setCalibrateTofCommandCallback(onCalibrateTofReceived);
+  McuCommsSingleton::getInstance().setScalesTareCommandCallback(onScalesTareReceived);
+  McuCommsSingleton::getInstance().setScalesSetFactorsCommandCallback(onScalesSetFactorsReceived);
 }
 
 void espCommsReadData() {
@@ -88,4 +90,13 @@ void espCommsSendLog(const char* message) {
   strncpy(snapshot.message, message, LOG_RECORD_LEN - 1);
   snapshot.message[LOG_RECORD_LEN - 1] = '\0';
   McuCommsSingleton::getInstance().sendLogRecord(snapshot);
+}
+
+volatile uint32_t scalesSnapshotTimer = 0;
+void espCommsSendScalesSnapshot(const ScalesSnapshot& snapshot, uint32_t frequency) {
+  uint32_t now = millis();
+  if (now - scalesSnapshotTimer > frequency) {
+    McuCommsSingleton::getInstance().sendScalesSnapshot(snapshot);
+    scalesSnapshotTimer = now;
+  }
 }

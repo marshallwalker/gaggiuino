@@ -18,6 +18,15 @@ namespace {
 }
 
 bool hwScalesPresent = false;
+// Cache of the persisted calibration factors so the calibration UI can read
+// them back without a round trip through EEPROM.
+static float currentScalesF1 = 1.f;
+static float currentScalesF2 = 1.f;
+// Cache of the last raw (offset-subtracted) reading per cell, populated each
+// time scalesGetWeight runs so scalesGetRawValues can return without another
+// HX711 conversion.
+static long lastRawCell1 = 0;
+static long lastRawCell2 = 0;
 
 #if defined SINGLE_HX711_BOARD
 unsigned char scale_clk = OUTPUT;
@@ -27,6 +36,8 @@ unsigned char scale_clk = OUTPUT_OPEN_DRAIN;
 
 void scalesInit(float scalesF1, float scalesF2) {
   hwScalesPresent = false;
+  currentScalesF1 = scalesF1;
+  currentScalesF2 = scalesF2;
   // Forced predicitve scales in case someone with actual hardware scales wants to use them.
   if (FORCE_PREDICTIVE_SCALES) {
     return;
@@ -53,6 +64,8 @@ void scalesInit(float scalesF1, float scalesF2) {
 }
 
 void scalesUpdateFactors(float scalesF1, float scalesF2) {
+  currentScalesF1 = scalesF1;
+  currentScalesF2 = scalesF2;
   if (hwScalesPresent) {
     LoadCellSingleton::getInstance().set_scale(scalesF1, scalesF2);
   }
@@ -78,6 +91,13 @@ Measurement scalesGetWeight(void) {
       float values[2];
       loadCells.get_units(values);
       currentWeight = Measurement{ .value=values[0] + values[1], .millis=millis() };
+      // get_units performs a read_average internally and subtracts the offset
+      // to produce a tared raw value, then divides by the scale factor. We
+      // back out the tared raw by multiplying values back up so the
+      // calibration UI sees the same numbers the conversion is using. Avoids
+      // a second HX711 read on every snapshot tick.
+      lastRawCell1 = (long)(values[0] * currentScalesF1);
+      lastRawCell2 = (long)(values[1] * currentScalesF2);
     }
   }
   else if (remoteScalesIsPresent()) {
@@ -100,4 +120,16 @@ float scalesDripTrayWeight() {
     LoadCellSingleton::getInstance().read_average(value, 4);
   }
   return ((float)value[0] + (float)value[1]);
+}
+
+bool scalesGetRawValues(long out[2]) {
+  if (!hwScalesPresent) return false;
+  out[0] = lastRawCell1;
+  out[1] = lastRawCell2;
+  return true;
+}
+
+void scalesGetFactors(float* f1, float* f2) {
+  if (f1) *f1 = currentScalesF1;
+  if (f2) *f2 = currentScalesF2;
 }

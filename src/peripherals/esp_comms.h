@@ -15,11 +15,14 @@ void espCommsSendShotData(ShotSnapshot& shotData, uint32_t frequency = 100);
 void espCommsSendTareScalesCommand();
 void espCommsSendProfileNames(const eepromValues_t& cfg);
 void espCommsSendLog(const char* message);
+void espCommsSendScalesSnapshot(const ScalesSnapshot& snapshot, uint32_t frequency = 250);
 
 void onProfileReceived(Profile& profile);
 void onRemoteScalesWeightReceived(float weight);
 void onRemoteScalesDisconnected();
 void onSelectProfileReceived(uint8_t index);
 void onCalibrateTofReceived(TofCalibrationTarget target);
+void onScalesTareReceived();
+void onScalesSetFactorsReceived(ScalesFactors factors);
 
 #endif

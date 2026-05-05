@@ -45,3 +45,7 @@ void onLogRecordReceived(LogSnapshot& snapshot) {
   snapshot.message[LOG_RECORD_LEN - 1] = '\0';
   wsSendLog(std::string(snapshot.message), "stm");
 }
+
+void onScalesSnapshotReceived(ScalesSnapshot& snapshot) {
+  wsSendScalesSnapshotToClients(snapshot);
+}

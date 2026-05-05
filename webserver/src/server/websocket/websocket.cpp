@@ -11,6 +11,7 @@ const std::string WS_MSG_SENSOR_DATA = "sensor_data_update";
 const std::string WS_MSG_SHOT_DATA = "shot_data_update";
 const std::string WS_MSG_PROFILE_NAMES = "profile_names_update";
 const std::string WS_MSG_LOG = "log_record";
+const std::string WS_MSG_SCALES_DATA = "scales_data_update";
 
 void wsSendProfileNamesToClient(AsyncWebSocketClient* client, const ProfileNamesSnapshot& snapshot);
 
@@ -76,6 +77,13 @@ void onEvent(
     LOG_INFO("WebSocket client #%u connected from %s", client->id(), client->remoteIP().toString().c_str());
     if (stmCommsHasProfileNames()) {
       wsSendProfileNamesToClient(client, stmCommsGetCachedProfileNames());
+    }
+    if (stmCommsHasScalesSnapshot()) {
+      // Re-broadcast to all so the late-joining client sees the latest factors
+      // and live raw values without waiting for the next 250ms STM push. The
+      // overhead is one tiny message; existing clients will idempotently
+      // overwrite the same snapshot they already have.
+      wsSendScalesSnapshotToClients(stmCommsGetCachedScalesSnapshot());
     }
     break;
   case WS_EVT_DISCONNECT:
@@ -196,6 +204,26 @@ void wsSendProfileNamesToClient(AsyncWebSocketClient* client, const ProfileNames
   std::string serializedMsg = buildProfileNamesJson(snapshot);
   websocket::unlockJson();
   client->text(serializedMsg.c_str(), serializedMsg.length());
+}
+
+void wsSendScalesSnapshotToClients(const ScalesSnapshot& snapshot) {
+  if (!websocket::lockJson()) return;
+  JsonObject root = websocket::jsonDoc.to<JsonObject>();
+
+  root["action"] = WS_MSG_SCALES_DATA;
+  JsonObject data = root.createNestedObject("data");
+  data["present"] = snapshot.present;
+  data["raw1"] = snapshot.raw1;
+  data["raw2"] = snapshot.raw2;
+  data["weight"] = snapshot.weight;
+  data["factor1"] = snapshot.factor1;
+  data["factor2"] = snapshot.factor2;
+
+  std::string serializedMsg;
+  serializeJson(root, serializedMsg);
+  websocket::unlockJson();
+
+  websocket::wsServer.textAll(serializedMsg.c_str(), serializedMsg.length());
 }
 
 void wsSendLog(std::string log, std::string source) {

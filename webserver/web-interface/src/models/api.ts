@@ -2,6 +2,7 @@ export const MSG_TYPE_SHOT_DATA = 'shot_data_update';
 export const MSG_TYPE_SENSOR_DATA = 'sensor_data_update';
 export const MSG_TYPE_PROFILE_NAMES = 'profile_names_update';
 export const MSG_TYPE_LOG = 'log_record';
+export const MSG_TYPE_SCALES_DATA = 'scales_data_update';
 
 export interface SensorData {
   brewActive: boolean;

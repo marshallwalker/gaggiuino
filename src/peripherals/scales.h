@@ -15,4 +15,10 @@ Measurement scalesGetWeight(void);
 bool scalesIsPresent(void);
 float scalesDripTrayWeight();
 
+// Calibration helpers — populate out[2] with the latest tared raw HX711 reading
+// per cell, or read the live values directly. Returns false if hardware scales
+// aren't present (out is left untouched).
+bool scalesGetRawValues(long out[2]);
+void scalesGetFactors(float* f1, float* f2);
+
 #endif
