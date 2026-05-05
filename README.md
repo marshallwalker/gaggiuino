@@ -16,7 +16,7 @@ This is my own personal fork of Gaggiuino. I'm just a guy who likes to code and 
 
 Issues and pull requests are welcome, but no guarantee they'll be implemented — this is a personal workspace and I work on it when I feel like it.
 
-> **Note:** firmware changes are STM32-side and don't require re-flashing the LCD. There is one HMI change in this fork — the steam-mode temperature progress-bar math — documented in [`lcd-hmi/home-tm0-steam-progress-fix.md`](lcd-hmi/home-tm0-steam-progress-fix.md). The compiled `nextion-lcd.tft` and `tjc-basic-lcd.tft` in this repo already include the fix; if you'd rather rebuild from source, edit the `.HMI` in Nextion Editor and (for TJC hardware) run [`scripts/convert-to-tjc.ps1`](scripts/convert-to-tjc.ps1) to generate the TJC variant. The firmware-only fixes still work without re-flashing the LCD if you'd prefer to skip it.
+> **Note:** firmware changes are STM32-side and don't require re-flashing the LCD. There is one HMI change in this fork — the steam-mode temperature progress-bar math — documented in [`nextion/hmi/home-tm0-steam-progress-fix.md`](nextion/hmi/home-tm0-steam-progress-fix.md). The compiled `nextion/nextion-lcd.tft` and `nextion/tjc-basic-lcd.tft` in this repo already include the fix; if you'd rather rebuild from source, edit the `.HMI` in Nextion Editor and (for TJC hardware) run [`nextion/tools/convert-to-tjc.ps1`](nextion/tools/convert-to-tjc.ps1) to generate the TJC variant. The firmware-only fixes still work without re-flashing the LCD if you'd prefer to skip it.
 
 ## Changes in this fork
 
@@ -47,7 +47,7 @@ Safety / robustness:
 
 HMI fixes:
 
-- Home-page temperature progress bar now scales against the active setpoint (brew or steam) instead of using `currentTemp` directly as the picture index — fills smoothly all the way to 155 °C in steam mode instead of pegging at frame 99 the moment temp passes 99 °C. See [`lcd-hmi/home-tm0-steam-progress-fix.md`](lcd-hmi/home-tm0-steam-progress-fix.md).
+- Home-page temperature progress bar now scales against the active setpoint (brew or steam) instead of using `currentTemp` directly as the picture index — fills smoothly all the way to 155 °C in steam mode instead of pegging at frame 99 the moment temp passes 99 °C. See [`nextion/hmi/home-tm0-steam-progress-fix.md`](nextion/hmi/home-tm0-steam-progress-fix.md).
 
 Code hygiene:
 
@@ -58,7 +58,7 @@ Code hygiene:
 
 Tooling:
 
-- [`scripts/convert-to-tjc.ps1`](scripts/convert-to-tjc.ps1) wraps the [andrew-harness fork of TFTTool](https://github.com/andrew-harness/TFTTool) to generate a TJC-compatible `.tft` from a Nextion-compiled one. Pinned to the fork because upstream UNUF/TFTTool stops at editor version 1.65.1 and current Gaggiuino `.HMI` files require 1.68.1.
+- [`nextion/tools/convert-to-tjc.ps1`](nextion/tools/convert-to-tjc.ps1) wraps the [andrew-harness fork of TFTTool](https://github.com/andrew-harness/TFTTool) to generate a TJC-compatible `.tft` from a Nextion-compiled one. Pinned to the fork because upstream UNUF/TFTTool stops at editor version 1.65.1 and current Gaggiuino `.HMI` files require 1.68.1.
 
 ## Intro
 **Gaggiuino started as an idea to improve an already capable coffee machine while keeping the machine appearance and button functionality as close as possible to the original. An important part is that no internal cables/connectors were modified; all the connections were made by creating splitters using the purchased spade connectors.**

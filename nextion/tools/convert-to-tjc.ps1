@@ -21,15 +21,15 @@
 
     On first run, the script clones TFTTool into <repo-root>/.tools/TFTTool.
     Source and target .tft paths are resolved relative to the repo root
-    (the parent directory of this script).
+    (two levels above this script — it lives in nextion/tools/).
 
 .PARAMETER Source
     Input .tft (Nextion-compiled), relative to repo root.
-    Default: nextion-basic-lcd.tft
+    Default: nextion/nextion-basic-lcd.tft
 
 .PARAMETER Target
     Output .tft (TJC), relative to repo root.
-    Default: tjc-basic-lcd.tft
+    Default: nextion/tjc-basic-lcd.tft
 
 .PARAMETER Model
     TJC device model string. Default: TJC4832T035 (3.5 inch basic).
@@ -40,24 +40,26 @@
     by your TJC firmware as a version mismatch.
 
 .EXAMPLE
-    .\scripts\convert-to-tjc.ps1
-    # nextion-basic-lcd.tft -> tjc-basic-lcd.tft (TJC4832T035)
+    .\nextion\tools\convert-to-tjc.ps1
+    # nextion/nextion-basic-lcd.tft -> nextion/tjc-basic-lcd.tft (TJC4832T035)
 
 .EXAMPLE
-    .\scripts\convert-to-tjc.ps1 -Source nextion-discovery-lcd.tft -Target tjc-discovery-lcd.tft -Model TJC4832K035
+    .\nextion\tools\convert-to-tjc.ps1 -Source nextion/nextion-discovery-lcd.tft -Target nextion/tjc-discovery-lcd.tft -Model TJC4832K035
     # K0/Enhanced (Discovery) variant
 #>
 
 [CmdletBinding()]
 param(
-    [string]$Source = "nextion-basic-lcd.tft",
-    [string]$Target = "tjc-basic-lcd.tft",
+    [string]$Source = "nextion/nextion-basic-lcd.tft",
+    [string]$Target = "nextion/tjc-basic-lcd.tft",
     [string]$Model = "TJC4832T035",
     [string]$EditorVersion
 )
 
 $ErrorActionPreference = "Stop"
-$RepoRoot  = Split-Path -Parent $PSScriptRoot
+# Script lives at <repo-root>/nextion/tools/convert-to-tjc.ps1, so the repo
+# root is two levels up.
+$RepoRoot  = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $ToolDir   = Join-Path $RepoRoot ".tools\TFTTool"
 $ToolEntry = Join-Path $ToolDir  "TFTTool.py"
 
