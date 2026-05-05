@@ -190,6 +190,12 @@ void McuComms::scalesSetFactorsCommandReceived(ScalesFactors factors) const {
   }
 }
 
+void McuComms::requestProfileNamesReceived() const {
+  if (requestProfileNamesCallback) {
+    requestProfileNamesCallback();
+  }
+}
+
 void McuComms::responseReceived(McuCommsResponse& response) const {
   if (responseReceivedCallback) {
     responseReceivedCallback(response);
@@ -312,6 +318,10 @@ void McuComms::setScalesSetFactorsCommandCallback(ScalesSetFactorsCommandCallbac
   scalesSetFactorsCommandCallback = callback;
 }
 
+void McuComms::setRequestProfileNamesCallback(RequestProfileNamesCallback callback) {
+  requestProfileNamesCallback = callback;
+}
+
 void McuComms::setResponseReceivedCallback(ResponseReceivedCallback callback) {
   responseReceivedCallback = callback;
 }
@@ -402,6 +412,12 @@ void McuComms::sendScalesSetFactors(ScalesFactors factors) {
   if (!isConnected()) return;
   uint16_t messageSize = transfer.txObj(factors);
   transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_SCALES_SET_FACTORS));
+}
+
+void McuComms::sendRequestProfileNames() {
+  if (!isConnected()) return;
+  uint16_t messageSize = transfer.txObj(static_cast<uint8_t>(McuCommsMessageType::MCUC_REQ_PROFILE_NAMES));
+  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_REQ_PROFILE_NAMES));
 }
 
 void McuComms::readDataAndTick() {
@@ -510,6 +526,10 @@ void McuComms::readDataAndTick() {
       ScalesFactors factors = {};
       transfer.rxObj(factors);
       scalesSetFactorsCommandReceived(factors);
+      break;
+    } case McuCommsMessageType::MCUC_REQ_PROFILE_NAMES: {
+      log("Received a request-profile-names command\n");
+      requestProfileNamesReceived();
       break;
     }
     default:

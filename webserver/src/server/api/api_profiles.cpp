@@ -18,9 +18,22 @@ void setupProfilesApi(AsyncWebServer& server) {
 void handleGetProfiles(AsyncWebServerRequest* request) {
   LOG_INFO("Got request to list profiles");
 
+  // Cache miss: ask the STM and wait briefly for the snapshot. Bounded wait
+  // (~300 ms) so the AsyncTCP task isn't held up if the STM isn't responding.
+  // Polling cadence is short (10 ms) so a healthy STM that turns it around in
+  // ~50 ms doesn't pay the full budget.
+  if (!stmCommsHasProfileNames()) {
+    LOG_INFO("Profile names cache miss; requesting from STM");
+    stmCommsSendRequestProfileNames();
+    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(300);
+    while (!stmCommsHasProfileNames() && xTaskGetTickCount() < deadline) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+  }
+
   if (!stmCommsHasProfileNames()) {
     AsyncWebServerResponse* response = request->beginResponse(503, "application/json",
-      "{\"result\":\"error\",\"message\":\"Profile names not yet received from STM\"}");
+      "{\"result\":\"error\",\"message\":\"STM did not respond to profile names request\"}");
     request->send(response);
     return;
   }

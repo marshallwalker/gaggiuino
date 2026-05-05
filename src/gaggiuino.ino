@@ -160,16 +160,6 @@ void loop(void) {
     espCommsSendScalesSnapshot(scalesSnapshot);
   }
 
-  // Push profile names whenever the ESP connection comes up (initial boot
-  // and any reconnect after the ESP reboots). Rising-edge so we don't
-  // hammer the link on every loop iteration.
-  static bool espWasConnected = false;
-  bool espNowConnected = espCommsIsConnected();
-  if (!espWasConnected && espNowConnected) {
-    espCommsSendProfileNames(runningCfg);
-    LOG_INFO("ESP connection established; profile names pushed");
-  }
-  espWasConnected = espNowConnected;
 
   sysHealthCheck(SYS_PRESSURE_IDLE);
 }
@@ -833,6 +823,14 @@ void onScalesTareReceived() {
   // Defer to the existing tarePending path so the tare runs in lock-step with
   // sensorsReadWeight rather than racing it from a comms callback.
   currentState.tarePending = true;
+}
+
+void onRequestProfileNamesReceived() {
+  // ESP webserver asked for the current profile names (e.g. on first
+  // /api/profiles call before the boot-time push completed). Respond with the
+  // current cfg snapshot - same payload as the rising-edge push in loop().
+  LOG_INFO("ESP requested profile names; pushing current snapshot");
+  espCommsSendProfileNames(runningCfg);
 }
 
 void onScalesSetFactorsReceived(ScalesFactors factors) {

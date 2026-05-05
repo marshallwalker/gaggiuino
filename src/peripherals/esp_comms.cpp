@@ -30,6 +30,7 @@ void espCommsInit() {
   McuCommsSingleton::getInstance().setCalibrateTofCommandCallback(onCalibrateTofReceived);
   McuCommsSingleton::getInstance().setScalesTareCommandCallback(onScalesTareReceived);
   McuCommsSingleton::getInstance().setScalesSetFactorsCommandCallback(onScalesSetFactorsReceived);
+  McuCommsSingleton::getInstance().setRequestProfileNamesCallback(onRequestProfileNamesReceived);
 }
 
 void espCommsReadData() {

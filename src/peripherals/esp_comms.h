@@ -24,5 +24,6 @@ void onSelectProfileReceived(uint8_t index);
 void onCalibrateTofReceived(TofCalibrationTarget target);
 void onScalesTareReceived();
 void onScalesSetFactorsReceived(ScalesFactors factors);
+void onRequestProfileNamesReceived();
 
 #endif

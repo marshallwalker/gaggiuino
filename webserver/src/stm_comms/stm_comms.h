@@ -11,6 +11,7 @@ void stmCommsSendSelectProfile(uint8_t index);
 void stmCommsSendCalibrateTof(TofCalibrationTarget target);
 void stmCommsSendScalesTare();
 void stmCommsSendScalesSetFactors(float factor1, float factor2);
+void stmCommsSendRequestProfileNames();
 
 bool stmCommsHasProfileNames();
 const ProfileNamesSnapshot& stmCommsGetCachedProfileNames();

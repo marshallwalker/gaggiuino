@@ -43,6 +43,8 @@ enum class McuCommsMessageType : uint8_t {
   MCUC_DATA_SCALES_SNAPSHOT = 17,  // STM -> ESP: scales calibration snapshot (raw + factors + weight)
   MCUC_CMD_SCALES_TARE = 18,       // ESP -> STM: zero the load cells (web-initiated, distinct from remote-scales tare)
   MCUC_CMD_SCALES_SET_FACTORS = 19,// ESP -> STM: set + persist new calibration factors {f1, f2}
+
+  MCUC_REQ_PROFILE_NAMES = 20,     // ESP -> STM: ask STM to push the current profile names (response arrives as MCUC_DATA_PROFILE_NAMES)
 };
 
 enum class TofCalibrationTarget : uint8_t {
@@ -107,6 +109,7 @@ private:
   using ScalesSnapshotReceivedCallback = std::function<void(ScalesSnapshot&)>;
   using ScalesTareCommandCallback = std::function<void()>;
   using ScalesSetFactorsCommandCallback = std::function<void(ScalesFactors)>;
+  using RequestProfileNamesCallback = std::function<void()>;
 
   uint32_t lastByteReceived = 0;
   uint32_t lastHeartbeatSent = 0;
@@ -126,6 +129,7 @@ private:
   ScalesSnapshotReceivedCallback scalesSnapshotCallback = nullptr;
   ScalesTareCommandCallback scalesTareCommandCallback = nullptr;
   ScalesSetFactorsCommandCallback scalesSetFactorsCommandCallback = nullptr;
+  RequestProfileNamesCallback requestProfileNamesCallback = nullptr;
   Stream* debugPort = nullptr;
   size_t packetSize;
 
@@ -160,6 +164,7 @@ private:
   void scalesSnapshotReceived(ScalesSnapshot& snapshot) const;
   void scalesTareCommandReceived() const;
   void scalesSetFactorsCommandReceived(ScalesFactors factors) const;
+  void requestProfileNamesReceived() const;
 
 public:
   void begin(Stream& serial, uint32_t waitConnectionMillis = 0, size_t packetSize = MAX_DATA_PER_PACKET_DEFAULT);
@@ -178,6 +183,7 @@ public:
   void setScalesSnapshotReceivedCallback(ScalesSnapshotReceivedCallback callback);
   void setScalesTareCommandCallback(ScalesTareCommandCallback callback);
   void setScalesSetFactorsCommandCallback(ScalesSetFactorsCommandCallback callback);
+  void setRequestProfileNamesCallback(RequestProfileNamesCallback callback);
 
   void sendShotData(const ShotSnapshot& snapshot);
   void sendProfile(Profile& profile);
@@ -193,6 +199,7 @@ public:
   void sendScalesSnapshot(const ScalesSnapshot& snapshot);
   void sendScalesTare();
   void sendScalesSetFactors(ScalesFactors factors);
+  void sendRequestProfileNames();
 
   bool isConnected();
   void readDataAndTick();

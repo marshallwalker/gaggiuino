@@ -82,6 +82,12 @@ void stmCommsSendScalesSetFactors(float factor1, float factor2) {
   xSemaphoreGiveRecursive(mcucLock);
 }
 
+void stmCommsSendRequestProfileNames() {
+  if (xSemaphoreTakeRecursive(mcucLock, portMAX_DELAY) == pdFALSE) return;
+  mcuComms.sendRequestProfileNames();
+  xSemaphoreGiveRecursive(mcucLock);
+}
+
 bool stmCommsHasProfileNames() {
   return hasProfileNames;
 }
