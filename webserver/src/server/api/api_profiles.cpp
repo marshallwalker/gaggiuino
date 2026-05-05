@@ -10,13 +10,20 @@
 void handleGetProfiles(AsyncWebServerRequest* request);
 void handleGetProfileByIndex(AsyncWebServerRequest* request, uint8_t index);
 void handlePutActiveProfile(AsyncWebServerRequest* request, JsonVariant& body);
+void handlePutProfileByIndex(AsyncWebServerRequest* request, JsonVariant& body);
+static void serializeProfileSnapshot(const ProfileDataSnapshot& s, JsonObject& json);
 
 void setupProfilesApi(AsyncWebServer& server) {
-  // Single GET handler dispatches /api/profiles (names list) and
+  // GET handler dispatches /api/profiles (names list) and
   // /api/profiles/<1..5> (per-profile detail) by parsing the URL —
   // ESPAsyncWebServer prefix-matches subpaths against this registration.
   server.on("/api/profiles", HTTP_GET, handleGetProfiles);
+  // Active-profile PUT — register FIRST so /api/profiles/active hits this
+  // exact-match handler before falling through to the prefix-matched slot
+  // PUT below.
   server.addHandler(jsonHandler("/api/profiles/active", HTTP_PUT, handlePutActiveProfile));
+  // Per-slot PUT — prefix-matches /api/profiles/<N>, dispatches by URL inside.
+  server.addHandler(jsonHandler("/api/profiles", HTTP_PUT, handlePutProfileByIndex));
 }
 
 void handleGetProfiles(AsyncWebServerRequest* request) {
@@ -40,8 +47,6 @@ void handleGetProfiles(AsyncWebServerRequest* request) {
 
   // Cache miss: ask the STM and wait briefly for the snapshot. Bounded wait
   // (~300 ms) so the AsyncTCP task isn't held up if the STM isn't responding.
-  // Polling cadence is short (10 ms) so a healthy STM that turns it around in
-  // ~50 ms doesn't pay the full budget.
   if (!stmCommsHasProfileNames()) {
     LOG_INFO("Profile names cache miss; requesting from STM");
     stmCommsSendRequestProfileNames();
@@ -99,16 +104,10 @@ void handleGetProfileByIndex(AsyncWebServerRequest* request, uint8_t index) {
   }
 
   AsyncResponseStream* response = request->beginResponseStream("application/json");
-  StaticJsonDocument<256> json;
-  const ProfileDataSnapshot& s = stmCommsGetCachedProfileData(index);
-  json["index"] = s.index;
-  json["name"] = s.name;
-  json["preinfusionSec"] = s.preinfusionSec;
-  json["preinfusionBar"] = s.preinfusionBar;
-  json["setpoint"] = s.setpoint;
-  json["shotDose"] = s.shotDose;
-  json["targetWeight"] = s.targetWeight;
-  json["stopOnWeightState"] = s.stopOnWeightState;
+  // Generous: ~50 fields × ~30 bytes per JSON pair = ~1.5KB. 4KB headroom.
+  DynamicJsonDocument json(4096);
+  JsonObject obj = json.to<JsonObject>();
+  serializeProfileSnapshot(stmCommsGetCachedProfileData(index), obj);
   serializeJson(json, *response);
   request->send(response);
 }
@@ -132,4 +131,195 @@ void handlePutActiveProfile(AsyncWebServerRequest* request, JsonVariant& body) {
   json["index"] = requestedIndex;
   serializeJson(json, *response);
   request->send(response);
+}
+
+void handlePutProfileByIndex(AsyncWebServerRequest* request, JsonVariant& body) {
+  // Parse the index out of /api/profiles/<N>. Anything that doesn't look
+  // like a single-digit slot path 404s.
+  String url = request->url();
+  if (url.length() != 15 /* strlen("/api/profiles/N") */) {
+    request->send(404, "application/json", "{\"result\":\"error\",\"message\":\"unknown profiles path\"}");
+    return;
+  }
+  char c = url.charAt(14);
+  if (!isDigit(c)) {
+    request->send(404, "application/json", "{\"result\":\"error\",\"message\":\"unknown profiles path\"}");
+    return;
+  }
+  uint8_t idx = (uint8_t)(c - '0');
+  if (idx < 1 || idx > PROFILE_NAMES_COUNT) {
+    request->send(400, "application/json", "{\"result\":\"error\",\"message\":\"index out of range\"}");
+    return;
+  }
+
+  LOG_INFO("Got PUT /api/profiles/%u", idx);
+
+  // Build snapshot from JSON body. Missing fields fall back to whatever's
+  // currently cached so partial-update PATCH-style requests work.
+  ProfileDataSnapshot snap = {};
+  if (stmCommsHasProfileData(idx)) {
+    snap = stmCommsGetCachedProfileData(idx);
+  }
+  snap.index = idx;
+
+  const char* name = body["name"] | snap.name;
+  strncpy(snap.name, name, PROFILE_DATA_NAME_LENGTH - 1);
+  snap.name[PROFILE_DATA_NAME_LENGTH - 1] = '\0';
+
+  // Preinfusion
+  snap.preinfusionState = body["preinfusionState"] | snap.preinfusionState;
+  snap.preinfusionFlowState = body["preinfusionFlowState"] | snap.preinfusionFlowState;
+  snap.preinfusionSec = body["preinfusionSec"] | snap.preinfusionSec;
+  snap.preinfusionBar = body["preinfusionBar"] | snap.preinfusionBar;
+  snap.preinfusionFlowVol = body["preinfusionFlowVol"] | snap.preinfusionFlowVol;
+  snap.preinfusionFlowTime = body["preinfusionFlowTime"] | snap.preinfusionFlowTime;
+  snap.preinfusionFlowPressureTarget = body["preinfusionFlowPressureTarget"] | snap.preinfusionFlowPressureTarget;
+  snap.preinfusionPressureFlowTarget = body["preinfusionPressureFlowTarget"] | snap.preinfusionPressureFlowTarget;
+  snap.preinfusionFilled = body["preinfusionFilled"] | snap.preinfusionFilled;
+  snap.preinfusionPressureAbove = body["preinfusionPressureAbove"] | snap.preinfusionPressureAbove;
+  snap.preinfusionWeightAbove = body["preinfusionWeightAbove"] | snap.preinfusionWeightAbove;
+  // Soak
+  snap.soakState = body["soakState"] | snap.soakState;
+  snap.soakTimePressure = body["soakTimePressure"] | snap.soakTimePressure;
+  snap.soakTimeFlow = body["soakTimeFlow"] | snap.soakTimeFlow;
+  snap.soakKeepPressure = body["soakKeepPressure"] | snap.soakKeepPressure;
+  snap.soakKeepFlow = body["soakKeepFlow"] | snap.soakKeepFlow;
+  snap.soakBelowPressure = body["soakBelowPressure"] | snap.soakBelowPressure;
+  snap.soakAbovePressure = body["soakAbovePressure"] | snap.soakAbovePressure;
+  snap.soakAboveWeight = body["soakAboveWeight"] | snap.soakAboveWeight;
+  // Ramp
+  snap.preinfusionRamp = body["preinfusionRamp"] | snap.preinfusionRamp;
+  snap.preinfusionRampSlope = body["preinfusionRampSlope"] | snap.preinfusionRampSlope;
+  // Profiling - transition (pressure)
+  snap.tpState = body["tpState"] | snap.tpState;
+  snap.tpType = body["tpType"] | snap.tpType;
+  snap.tpProfilingStart = body["tpProfilingStart"] | snap.tpProfilingStart;
+  snap.tpProfilingFinish = body["tpProfilingFinish"] | snap.tpProfilingFinish;
+  snap.tpProfilingHold = body["tpProfilingHold"] | snap.tpProfilingHold;
+  snap.tpProfilingHoldLimit = body["tpProfilingHoldLimit"] | snap.tpProfilingHoldLimit;
+  snap.tpProfilingSlope = body["tpProfilingSlope"] | snap.tpProfilingSlope;
+  snap.tpProfilingSlopeShape = body["tpProfilingSlopeShape"] | snap.tpProfilingSlopeShape;
+  snap.tpProfilingFlowRestriction = body["tpProfilingFlowRestriction"] | snap.tpProfilingFlowRestriction;
+  // Profiling - transition (flow)
+  snap.tfProfileStart = body["tfProfileStart"] | snap.tfProfileStart;
+  snap.tfProfileEnd = body["tfProfileEnd"] | snap.tfProfileEnd;
+  snap.tfProfileHold = body["tfProfileHold"] | snap.tfProfileHold;
+  snap.tfProfileHoldLimit = body["tfProfileHoldLimit"] | snap.tfProfileHoldLimit;
+  snap.tfProfileSlope = body["tfProfileSlope"] | snap.tfProfileSlope;
+  snap.tfProfileSlopeShape = body["tfProfileSlopeShape"] | snap.tfProfileSlopeShape;
+  snap.tfProfilingPressureRestriction = body["tfProfilingPressureRestriction"] | snap.tfProfilingPressureRestriction;
+  // Profiling - main
+  snap.profilingState = body["profilingState"] | snap.profilingState;
+  snap.mfProfileState = body["mfProfileState"] | snap.mfProfileState;
+  snap.mpProfilingStart = body["mpProfilingStart"] | snap.mpProfilingStart;
+  snap.mpProfilingFinish = body["mpProfilingFinish"] | snap.mpProfilingFinish;
+  snap.mpProfilingSlope = body["mpProfilingSlope"] | snap.mpProfilingSlope;
+  snap.mpProfilingSlopeShape = body["mpProfilingSlopeShape"] | snap.mpProfilingSlopeShape;
+  snap.mpProfilingFlowRestriction = body["mpProfilingFlowRestriction"] | snap.mpProfilingFlowRestriction;
+  snap.mfProfileStart = body["mfProfileStart"] | snap.mfProfileStart;
+  snap.mfProfileEnd = body["mfProfileEnd"] | snap.mfProfileEnd;
+  snap.mfProfileSlope = body["mfProfileSlope"] | snap.mfProfileSlope;
+  snap.mfProfileSlopeShape = body["mfProfileSlopeShape"] | snap.mfProfileSlopeShape;
+  snap.mfProfilingPressureRestriction = body["mfProfilingPressureRestriction"] | snap.mfProfilingPressureRestriction;
+  // Other
+  snap.setpoint = body["setpoint"] | snap.setpoint;
+  snap.stopOnWeightState = body["stopOnWeightState"] | snap.stopOnWeightState;
+  snap.shotDose = body["shotDose"] | snap.shotDose;
+  snap.shotStopOnCustomWeight = body["shotStopOnCustomWeight"] | snap.shotStopOnCustomWeight;
+  snap.shotPreset = body["shotPreset"] | snap.shotPreset;
+
+  // Invalidate the cache so we can detect when the STM's write-confirmation
+  // arrives — the STM responds to a successful set by re-pushing the
+  // (possibly clamped) profile data, which re-populates the cache.
+  stmCommsInvalidateProfileDataCache(idx);
+  stmCommsSendProfileDataSet(snap);
+
+  // Bounded wait for confirmation. EEPROM writes can take a few hundred ms
+  // on the FlashStorage_STM32 lib, so 800ms gives headroom.
+  const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(800);
+  while (!stmCommsHasProfileData(idx) && xTaskGetTickCount() < deadline) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  if (!stmCommsHasProfileData(idx)) {
+    request->send(503, "application/json",
+      "{\"result\":\"error\",\"message\":\"STM did not confirm profile write (timeout or rejected — check logs)\"}");
+    return;
+  }
+
+  // Echo back the actually-persisted snapshot so the UI sees any STM-side
+  // clamping applied.
+  AsyncResponseStream* response = request->beginResponseStream("application/json");
+  DynamicJsonDocument json(4096);
+  JsonObject obj = json.to<JsonObject>();
+  serializeProfileSnapshot(stmCommsGetCachedProfileData(idx), obj);
+  serializeJson(json, *response);
+  request->send(response);
+}
+
+// Shared serializer used by GET and PUT-echo paths.
+static void serializeProfileSnapshot(const ProfileDataSnapshot& s, JsonObject& json) {
+  json["index"] = s.index;
+  json["name"] = s.name;
+  // Preinfusion
+  json["preinfusionState"] = s.preinfusionState;
+  json["preinfusionFlowState"] = s.preinfusionFlowState;
+  json["preinfusionSec"] = s.preinfusionSec;
+  json["preinfusionBar"] = s.preinfusionBar;
+  json["preinfusionFlowVol"] = s.preinfusionFlowVol;
+  json["preinfusionFlowTime"] = s.preinfusionFlowTime;
+  json["preinfusionFlowPressureTarget"] = s.preinfusionFlowPressureTarget;
+  json["preinfusionPressureFlowTarget"] = s.preinfusionPressureFlowTarget;
+  json["preinfusionFilled"] = s.preinfusionFilled;
+  json["preinfusionPressureAbove"] = s.preinfusionPressureAbove;
+  json["preinfusionWeightAbove"] = s.preinfusionWeightAbove;
+  // Soak
+  json["soakState"] = s.soakState;
+  json["soakTimePressure"] = s.soakTimePressure;
+  json["soakTimeFlow"] = s.soakTimeFlow;
+  json["soakKeepPressure"] = s.soakKeepPressure;
+  json["soakKeepFlow"] = s.soakKeepFlow;
+  json["soakBelowPressure"] = s.soakBelowPressure;
+  json["soakAbovePressure"] = s.soakAbovePressure;
+  json["soakAboveWeight"] = s.soakAboveWeight;
+  // Ramp
+  json["preinfusionRamp"] = s.preinfusionRamp;
+  json["preinfusionRampSlope"] = s.preinfusionRampSlope;
+  // Profiling - transition (pressure)
+  json["tpState"] = s.tpState;
+  json["tpType"] = s.tpType;
+  json["tpProfilingStart"] = s.tpProfilingStart;
+  json["tpProfilingFinish"] = s.tpProfilingFinish;
+  json["tpProfilingHold"] = s.tpProfilingHold;
+  json["tpProfilingHoldLimit"] = s.tpProfilingHoldLimit;
+  json["tpProfilingSlope"] = s.tpProfilingSlope;
+  json["tpProfilingSlopeShape"] = s.tpProfilingSlopeShape;
+  json["tpProfilingFlowRestriction"] = s.tpProfilingFlowRestriction;
+  // Profiling - transition (flow)
+  json["tfProfileStart"] = s.tfProfileStart;
+  json["tfProfileEnd"] = s.tfProfileEnd;
+  json["tfProfileHold"] = s.tfProfileHold;
+  json["tfProfileHoldLimit"] = s.tfProfileHoldLimit;
+  json["tfProfileSlope"] = s.tfProfileSlope;
+  json["tfProfileSlopeShape"] = s.tfProfileSlopeShape;
+  json["tfProfilingPressureRestriction"] = s.tfProfilingPressureRestriction;
+  // Profiling - main
+  json["profilingState"] = s.profilingState;
+  json["mfProfileState"] = s.mfProfileState;
+  json["mpProfilingStart"] = s.mpProfilingStart;
+  json["mpProfilingFinish"] = s.mpProfilingFinish;
+  json["mpProfilingSlope"] = s.mpProfilingSlope;
+  json["mpProfilingSlopeShape"] = s.mpProfilingSlopeShape;
+  json["mpProfilingFlowRestriction"] = s.mpProfilingFlowRestriction;
+  json["mfProfileStart"] = s.mfProfileStart;
+  json["mfProfileEnd"] = s.mfProfileEnd;
+  json["mfProfileSlope"] = s.mfProfileSlope;
+  json["mfProfileSlopeShape"] = s.mfProfileSlopeShape;
+  json["mfProfilingPressureRestriction"] = s.mfProfilingPressureRestriction;
+  // Other
+  json["setpoint"] = s.setpoint;
+  json["stopOnWeightState"] = s.stopOnWeightState;
+  json["shotDose"] = s.shotDose;
+  json["shotStopOnCustomWeight"] = s.shotStopOnCustomWeight;
+  json["shotPreset"] = s.shotPreset;
 }

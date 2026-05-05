@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Coffee, Settings, Wind } from "lucide-react"
+import { Coffee, Settings, Sliders, Wind } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { BrewDashboard } from "@/components/dashboard/brew-dashboard"
 import { SteamDashboard } from "@/components/dashboard/steam-dashboard"
@@ -62,7 +62,13 @@ export default function HomePage() {
                 </Button>
               </div>
               
-              {/* Settings link */}
+              {/* Profiles + Settings links */}
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/profiles">
+                  <Sliders className="h-4 w-4 mr-2" />
+                  Profiles
+                </Link>
+              </Button>
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/settings">
                   <Settings className="h-4 w-4 mr-2" />

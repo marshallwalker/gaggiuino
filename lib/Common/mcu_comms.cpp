@@ -208,6 +208,12 @@ void McuComms::profileDataSnapshotReceived(ProfileDataSnapshot& snapshot) const 
   }
 }
 
+void McuComms::setProfileDataCommandReceived(ProfileDataSnapshot& snapshot) const {
+  if (setProfileDataCommandCallback) {
+    setProfileDataCommandCallback(snapshot);
+  }
+}
+
 void McuComms::responseReceived(McuCommsResponse& response) const {
   if (responseReceivedCallback) {
     responseReceivedCallback(response);
@@ -342,6 +348,10 @@ void McuComms::setProfileDataSnapshotReceivedCallback(ProfileDataSnapshotReceive
   profileDataSnapshotCallback = callback;
 }
 
+void McuComms::setSetProfileDataCommandCallback(SetProfileDataCommandCallback callback) {
+  setProfileDataCommandCallback = callback;
+}
+
 void McuComms::setResponseReceivedCallback(ResponseReceivedCallback callback) {
   responseReceivedCallback = callback;
 }
@@ -448,8 +458,19 @@ void McuComms::sendRequestProfileData(uint8_t index) {
 
 void McuComms::sendProfileDataSnapshot(const ProfileDataSnapshot& snapshot) {
   if (!isConnected()) return;
-  uint16_t messageSize = transfer.txObj(snapshot);
-  transfer.sendData(messageSize, static_cast<uint8_t>(McuCommsMessageType::MCUC_DATA_PROFILE_DATA));
+  // Struct grew past the single-packet payload size when we extended it to
+  // mirror the full profile_t (~250 bytes). Use multi-packet, same pattern
+  // as ProfileNamesSnapshot / LogSnapshot.
+  std::vector<uint8_t> buffer(sizeof(ProfileDataSnapshot));
+  memcpy(buffer.data(), &snapshot, sizeof(ProfileDataSnapshot));
+  sendMultiPacket(buffer, sizeof(ProfileDataSnapshot), static_cast<uint8_t>(McuCommsMessageType::MCUC_DATA_PROFILE_DATA));
+}
+
+void McuComms::sendProfileDataSet(const ProfileDataSnapshot& snapshot) {
+  if (!isConnected()) return;
+  std::vector<uint8_t> buffer(sizeof(ProfileDataSnapshot));
+  memcpy(buffer.data(), &snapshot, sizeof(ProfileDataSnapshot));
+  sendMultiPacket(buffer, sizeof(ProfileDataSnapshot), static_cast<uint8_t>(McuCommsMessageType::MCUC_CMD_PROFILE_DATA_SET));
 }
 
 void McuComms::readDataAndTick() {
@@ -571,9 +592,27 @@ void McuComms::readDataAndTick() {
       break;
     } case McuCommsMessageType::MCUC_DATA_PROFILE_DATA: {
       log("Received a profile-data snapshot\n");
+      std::vector<uint8_t> data = receiveMultiPacket();
+      if (data.empty()) {
+        log("Profile data packet was empty - skipping\n");
+        break;
+      }
       ProfileDataSnapshot snapshot = {};
-      transfer.rxObj(snapshot);
+      size_t toCopy = data.size() < sizeof(ProfileDataSnapshot) ? data.size() : sizeof(ProfileDataSnapshot);
+      memcpy(&snapshot, data.data(), toCopy);
       profileDataSnapshotReceived(snapshot);
+      break;
+    } case McuCommsMessageType::MCUC_CMD_PROFILE_DATA_SET: {
+      log("Received a set-profile-data command\n");
+      std::vector<uint8_t> data = receiveMultiPacket();
+      if (data.empty()) {
+        log("Set-profile-data packet was empty - skipping\n");
+        break;
+      }
+      ProfileDataSnapshot snapshot = {};
+      size_t toCopy = data.size() < sizeof(ProfileDataSnapshot) ? data.size() : sizeof(ProfileDataSnapshot);
+      memcpy(&snapshot, data.data(), toCopy);
+      setProfileDataCommandReceived(snapshot);
       break;
     }
     default:

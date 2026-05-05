@@ -1,13 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { Settings, Coffee, Home } from "lucide-react"
+import { Settings, Coffee, Home, Sliders } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { WifiConfig } from "@/components/settings/wifi-config"
 import { TofSensorConfig } from "@/components/settings/tof-sensor-config"
 import { ScalesConfig } from "@/components/settings/scales-config"
 import { LogsConfig } from "@/components/settings/logs-config"
-import { ProfilesConfig } from "@/components/settings/profiles-config"
 
 export default function SettingsPage() {
   return (
@@ -28,6 +27,12 @@ export default function SettingsPage() {
                 <Link href="/">
                   <Home className="h-4 w-4 mr-2" />
                   Home
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/profiles">
+                  <Sliders className="h-4 w-4 mr-2" />
+                  Profiles
                 </Link>
               </Button>
               <div className="flex items-center gap-2 text-primary px-3 py-1.5 bg-primary/10 rounded-md">
@@ -55,7 +60,6 @@ export default function SettingsPage() {
             <WifiConfig />
             <TofSensorConfig />
             <ScalesConfig />
-            <ProfilesConfig />
             <LogsConfig />
           </div>
 

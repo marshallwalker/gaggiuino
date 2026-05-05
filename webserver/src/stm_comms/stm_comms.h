@@ -13,6 +13,7 @@ void stmCommsSendScalesTare();
 void stmCommsSendScalesSetFactors(float factor1, float factor2);
 void stmCommsSendRequestProfileNames();
 void stmCommsSendRequestProfileData(uint8_t index);
+void stmCommsSendProfileDataSet(const ProfileDataSnapshot& snapshot);
 
 bool stmCommsHasProfileNames();
 const ProfileNamesSnapshot& stmCommsGetCachedProfileNames();
@@ -20,6 +21,10 @@ bool stmCommsHasScalesSnapshot();
 const ScalesSnapshot& stmCommsGetCachedScalesSnapshot();
 bool stmCommsHasProfileData(uint8_t index);
 const ProfileDataSnapshot& stmCommsGetCachedProfileData(uint8_t index);
+// Clears the cache flag for one slot so the next stmCommsHasProfileData()
+// returns false until the STM pushes a fresh snapshot. Used by the PUT
+// handler to wait for write-confirmation without a separate response message.
+void stmCommsInvalidateProfileDataCache(uint8_t index);
 
 // To be defined elsewhere
 void onSensorStateSnapshotReceived(SensorStateSnapshot& snapshot);

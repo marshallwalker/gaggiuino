@@ -48,6 +48,7 @@ enum class McuCommsMessageType : uint8_t {
 
   MCUC_REQ_PROFILE_DATA = 21,      // ESP -> STM: ask STM for one profile's basic settings (payload: 1-indexed uint8_t)
   MCUC_DATA_PROFILE_DATA = 22,     // STM -> ESP: ProfileDataSnapshot for one profile
+  MCUC_CMD_PROFILE_DATA_SET = 23,  // ESP -> STM: write a profile slot (payload: ProfileDataSnapshot)
 };
 
 enum class TofCalibrationTarget : uint8_t {
@@ -74,22 +75,77 @@ struct ScalesFactors {
   float factor2;
 };
 
-// Subset of the EEPROM profile_t exposed to the web UI for the profile-detail
-// card on the dashboard. Just the fields a user typically wants to see at a
-// glance — full phase / curve data stays internal to the STM.
+// Full mirror of the EEPROM profile_t struct (minus the surrounding global
+// settings) plus an `index` field. Sent both directions:
+//   - STM → ESP: response to MCUC_REQ_PROFILE_DATA, populates the editor
+//   - ESP → STM: MCUC_CMD_PROFILE_DATA_SET, writes a new profile to EEPROM
+// Slope-shape fields (preinfusionRampSlope, *SlopeShape) are TransitionCurve
+// enum values: 0=EASE_IN_OUT, 1=EASE_IN, 2=EASE_OUT, 3=LINEAR, 4=INSTANT.
 #define PROFILE_DATA_NAME_LENGTH 25
 struct ProfileDataSnapshot {
   uint8_t  index;                  // 1-indexed; 0 means "not populated / lookup failed"
   char     name[PROFILE_DATA_NAME_LENGTH];
+  // Preinfusion
+  bool     preinfusionState;
+  bool     preinfusionFlowState;   // false = pressure-controlled, true = flow
   uint16_t preinfusionSec;
   float    preinfusionBar;
+  float    preinfusionFlowVol;
+  uint16_t preinfusionFlowTime;
+  float    preinfusionFlowPressureTarget;
+  float    preinfusionPressureFlowTarget;
+  float    preinfusionFilled;
+  bool     preinfusionPressureAbove;
+  float    preinfusionWeightAbove;
+  // Soak
+  bool     soakState;
+  uint16_t soakTimePressure;
+  uint16_t soakTimeFlow;
+  float    soakKeepPressure;
+  float    soakKeepFlow;
+  float    soakBelowPressure;
+  float    soakAbovePressure;
+  float    soakAboveWeight;
+  // Preinfusion → profiling ramp
+  uint16_t preinfusionRamp;
+  uint16_t preinfusionRampSlope;
+  // Profiling: transition phase (pressure-side)
+  bool     tpState;
+  bool     tpType;
+  float    tpProfilingStart;
+  float    tpProfilingFinish;
+  uint16_t tpProfilingHold;
+  float    tpProfilingHoldLimit;
+  uint16_t tpProfilingSlope;
+  uint16_t tpProfilingSlopeShape;
+  float    tpProfilingFlowRestriction;
+  // Profiling: transition phase (flow-side)
+  float    tfProfileStart;
+  float    tfProfileEnd;
+  uint16_t tfProfileHold;
+  float    tfProfileHoldLimit;
+  uint16_t tfProfileSlope;
+  uint16_t tfProfileSlopeShape;
+  float    tfProfilingPressureRestriction;
+  // Profiling: main phase
+  bool     profilingState;
+  bool     mfProfileState;
+  float    mpProfilingStart;
+  float    mpProfilingFinish;
+  uint16_t mpProfilingSlope;
+  uint16_t mpProfilingSlopeShape;
+  float    mpProfilingFlowRestriction;
+  float    mfProfileStart;
+  float    mfProfileEnd;
+  uint16_t mfProfileSlope;
+  uint16_t mfProfileSlopeShape;
+  float    mfProfilingPressureRestriction;
+  // Other
   uint16_t setpoint;               // brew temp °C
-  float    shotDose;               // input dose in grams
-  // Resolved target output weight when stopOnWeightState is true. The STM
-  // applies the same shotStopOnCustomWeight-vs-shotPreset fallback logic as
-  // the brew loop so the UI doesn't have to know about preset multipliers.
-  float    targetWeight;
   bool     stopOnWeightState;
+  float    shotDose;               // input dose in grams
+  float    shotStopOnCustomWeight; // explicit target weight when >= 1g
+  uint16_t shotPreset;             // multiplier (1=single, 2=double, ...) used when shotStopOnCustomWeight < 1
 };
 
 #define LOG_RECORD_LEN 128
@@ -133,6 +189,7 @@ private:
   using RequestProfileNamesCallback = std::function<void()>;
   using RequestProfileDataCallback = std::function<void(uint8_t)>;
   using ProfileDataSnapshotReceivedCallback = std::function<void(ProfileDataSnapshot&)>;
+  using SetProfileDataCommandCallback = std::function<void(ProfileDataSnapshot&)>;
 
   uint32_t lastByteReceived = 0;
   uint32_t lastHeartbeatSent = 0;
@@ -155,6 +212,7 @@ private:
   RequestProfileNamesCallback requestProfileNamesCallback = nullptr;
   RequestProfileDataCallback requestProfileDataCallback = nullptr;
   ProfileDataSnapshotReceivedCallback profileDataSnapshotCallback = nullptr;
+  SetProfileDataCommandCallback setProfileDataCommandCallback = nullptr;
   Stream* debugPort = nullptr;
   size_t packetSize;
 
@@ -192,6 +250,7 @@ private:
   void requestProfileNamesReceived() const;
   void requestProfileDataReceived(uint8_t index) const;
   void profileDataSnapshotReceived(ProfileDataSnapshot& snapshot) const;
+  void setProfileDataCommandReceived(ProfileDataSnapshot& snapshot) const;
 
 public:
   void begin(Stream& serial, uint32_t waitConnectionMillis = 0, size_t packetSize = MAX_DATA_PER_PACKET_DEFAULT);
@@ -213,6 +272,7 @@ public:
   void setRequestProfileNamesCallback(RequestProfileNamesCallback callback);
   void setRequestProfileDataCallback(RequestProfileDataCallback callback);
   void setProfileDataSnapshotReceivedCallback(ProfileDataSnapshotReceivedCallback callback);
+  void setSetProfileDataCommandCallback(SetProfileDataCommandCallback callback);
 
   void sendShotData(const ShotSnapshot& snapshot);
   void sendProfile(Profile& profile);
@@ -231,6 +291,7 @@ public:
   void sendRequestProfileNames();
   void sendRequestProfileData(uint8_t index);
   void sendProfileDataSnapshot(const ProfileDataSnapshot& snapshot);
+  void sendProfileDataSet(const ProfileDataSnapshot& snapshot);
 
   bool isConnected();
   void readDataAndTick();

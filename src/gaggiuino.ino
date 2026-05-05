@@ -856,6 +856,110 @@ void onRequestProfileNamesReceived() {
   espCommsSendProfileNames(runningCfg);
 }
 
+void onSetProfileDataReceived(ProfileDataSnapshot& snap) {
+  // ESP webserver pushed a profile-edit. Validate, copy into runningCfg,
+  // persist, and broadcast the names list so other clients (LCD + WS)
+  // pick up renames.
+  if (snap.index < 1 || snap.index > MAX_PROFILES) {
+    LOG_ERROR("Profile-write rejected: index %u out of range", snap.index);
+    return;
+  }
+  if (brewActive) {
+    // Don't mutate the active profile mid-shot — pressure/flow targets would
+    // jump unpredictably. The web UI surfaces the failure as a toast.
+    LOG_ERROR("Profile-write rejected: brew is active, refusing mid-shot edit");
+    return;
+  }
+  uint8_t zeroIdx = snap.index - 1;
+  auto& dst = runningCfg.profiles[zeroIdx];
+
+  // Defensive null-terminate the incoming name and copy.
+  snap.name[PROFILE_DATA_NAME_LENGTH - 1] = '\0';
+  strncpy(dst.name, snap.name, PROFILE_NAME_LENGTH - 1);
+  dst.name[PROFILE_NAME_LENGTH - 1] = '\0';
+
+  // Preinfusion
+  dst.preinfusionState = snap.preinfusionState;
+  dst.preinfusionFlowState = snap.preinfusionFlowState;
+  dst.preinfusionSec = snap.preinfusionSec;
+  dst.preinfusionBar = snap.preinfusionBar;
+  dst.preinfusionFlowVol = snap.preinfusionFlowVol;
+  dst.preinfusionFlowTime = snap.preinfusionFlowTime;
+  dst.preinfusionFlowPressureTarget = snap.preinfusionFlowPressureTarget;
+  dst.preinfusionPressureFlowTarget = snap.preinfusionPressureFlowTarget;
+  dst.preinfusionFilled = snap.preinfusionFilled;
+  dst.preinfusionPressureAbove = snap.preinfusionPressureAbove;
+  dst.preinfusionWeightAbove = snap.preinfusionWeightAbove;
+  // Soak
+  dst.soakState = snap.soakState;
+  dst.soakTimePressure = snap.soakTimePressure;
+  dst.soakTimeFlow = snap.soakTimeFlow;
+  dst.soakKeepPressure = snap.soakKeepPressure;
+  dst.soakKeepFlow = snap.soakKeepFlow;
+  dst.soakBelowPressure = snap.soakBelowPressure;
+  dst.soakAbovePressure = snap.soakAbovePressure;
+  dst.soakAboveWeight = snap.soakAboveWeight;
+  // Ramp
+  dst.preinfusionRamp = snap.preinfusionRamp;
+  dst.preinfusionRampSlope = snap.preinfusionRampSlope;
+  // Profiling - transition (pressure)
+  dst.tpState = snap.tpState;
+  dst.tpType = snap.tpType;
+  dst.tpProfilingStart = snap.tpProfilingStart;
+  dst.tpProfilingFinish = snap.tpProfilingFinish;
+  dst.tpProfilingHold = snap.tpProfilingHold;
+  dst.tpProfilingHoldLimit = snap.tpProfilingHoldLimit;
+  dst.tpProfilingSlope = snap.tpProfilingSlope;
+  dst.tpProfilingSlopeShape = snap.tpProfilingSlopeShape;
+  dst.tpProfilingFlowRestriction = snap.tpProfilingFlowRestriction;
+  // Profiling - transition (flow)
+  dst.tfProfileStart = snap.tfProfileStart;
+  dst.tfProfileEnd = snap.tfProfileEnd;
+  dst.tfProfileHold = snap.tfProfileHold;
+  dst.tfProfileHoldLimit = snap.tfProfileHoldLimit;
+  dst.tfProfileSlope = snap.tfProfileSlope;
+  dst.tfProfileSlopeShape = snap.tfProfileSlopeShape;
+  dst.tfProfilingPressureRestriction = snap.tfProfilingPressureRestriction;
+  // Profiling - main
+  dst.profilingState = snap.profilingState;
+  dst.mfProfileState = snap.mfProfileState;
+  dst.mpProfilingStart = snap.mpProfilingStart;
+  dst.mpProfilingFinish = snap.mpProfilingFinish;
+  dst.mpProfilingSlope = snap.mpProfilingSlope;
+  dst.mpProfilingSlopeShape = snap.mpProfilingSlopeShape;
+  dst.mpProfilingFlowRestriction = snap.mpProfilingFlowRestriction;
+  dst.mfProfileStart = snap.mfProfileStart;
+  dst.mfProfileEnd = snap.mfProfileEnd;
+  dst.mfProfileSlope = snap.mfProfileSlope;
+  dst.mfProfileSlopeShape = snap.mfProfileSlopeShape;
+  dst.mfProfilingPressureRestriction = snap.mfProfilingPressureRestriction;
+  // Other
+  dst.setpoint = snap.setpoint;
+  dst.stopOnWeightState = snap.stopOnWeightState;
+  dst.shotDose = snap.shotDose;
+  dst.shotStopOnCustomWeight = snap.shotStopOnCustomWeight;
+  dst.shotPreset = snap.shotPreset;
+
+  // Persist. eepromWrite has its own range checks; if it rejects we roll
+  // back the in-memory copy so we don't drift from EEPROM.
+  if (eepromWrite(runningCfg)) {
+    LOG_INFO("Profile %u (\"%s\") written via web UI", snap.index, dst.name);
+    // If the user just edited the active profile, rebuild the phase profiler
+    // so the new values take effect on the next shot.
+    if (zeroIdx == runningCfg.activeProfile) {
+      updateProfilerPhases();
+    }
+    // Push the names list so the LCD + other WS clients see renames.
+    espCommsSendProfileNames(runningCfg);
+    // Also push the freshly-written profile data so the requester's cache
+    // reflects what actually persisted (eepromWrite may have clamped fields).
+    espCommsSendProfileData(runningCfg, snap.index);
+  } else {
+    LOG_ERROR("Profile %u write rejected by eepromWrite (out of range)", snap.index);
+    runningCfg = eepromGetCurrentValues();
+  }
+}
+
 void onRequestProfileDataReceived(uint8_t index) {
   // ESP webserver asked for the basic settings of one profile (e.g. for the
   // dashboard's profile-detail card). Respond from runningCfg. Out-of-range

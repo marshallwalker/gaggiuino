@@ -27,5 +27,6 @@ void onScalesTareReceived();
 void onScalesSetFactorsReceived(ScalesFactors factors);
 void onRequestProfileNamesReceived();
 void onRequestProfileDataReceived(uint8_t index);
+void onSetProfileDataReceived(ProfileDataSnapshot& snapshot);
 
 #endif

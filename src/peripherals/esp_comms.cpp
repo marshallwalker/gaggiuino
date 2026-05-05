@@ -32,6 +32,7 @@ void espCommsInit() {
   McuCommsSingleton::getInstance().setScalesSetFactorsCommandCallback(onScalesSetFactorsReceived);
   McuCommsSingleton::getInstance().setRequestProfileNamesCallback(onRequestProfileNamesReceived);
   McuCommsSingleton::getInstance().setRequestProfileDataCallback(onRequestProfileDataReceived);
+  McuCommsSingleton::getInstance().setSetProfileDataCommandCallback(onSetProfileDataReceived);
 }
 
 void espCommsReadData() {
@@ -104,17 +105,67 @@ void espCommsSendProfileData(const eepromValues_t& cfg, uint8_t index) {
   snapshot.index = index;
   strncpy(snapshot.name, p.name, PROFILE_DATA_NAME_LENGTH - 1);
   snapshot.name[PROFILE_DATA_NAME_LENGTH - 1] = '\0';
+  // Preinfusion
+  snapshot.preinfusionState = p.preinfusionState;
+  snapshot.preinfusionFlowState = p.preinfusionFlowState;
   snapshot.preinfusionSec = p.preinfusionSec;
   snapshot.preinfusionBar = p.preinfusionBar;
+  snapshot.preinfusionFlowVol = p.preinfusionFlowVol;
+  snapshot.preinfusionFlowTime = p.preinfusionFlowTime;
+  snapshot.preinfusionFlowPressureTarget = p.preinfusionFlowPressureTarget;
+  snapshot.preinfusionPressureFlowTarget = p.preinfusionPressureFlowTarget;
+  snapshot.preinfusionFilled = p.preinfusionFilled;
+  snapshot.preinfusionPressureAbove = p.preinfusionPressureAbove;
+  snapshot.preinfusionWeightAbove = p.preinfusionWeightAbove;
+  // Soak
+  snapshot.soakState = p.soakState;
+  snapshot.soakTimePressure = p.soakTimePressure;
+  snapshot.soakTimeFlow = p.soakTimeFlow;
+  snapshot.soakKeepPressure = p.soakKeepPressure;
+  snapshot.soakKeepFlow = p.soakKeepFlow;
+  snapshot.soakBelowPressure = p.soakBelowPressure;
+  snapshot.soakAbovePressure = p.soakAbovePressure;
+  snapshot.soakAboveWeight = p.soakAboveWeight;
+  // Ramp
+  snapshot.preinfusionRamp = p.preinfusionRamp;
+  snapshot.preinfusionRampSlope = p.preinfusionRampSlope;
+  // Profiling - transition (pressure)
+  snapshot.tpState = p.tpState;
+  snapshot.tpType = p.tpType;
+  snapshot.tpProfilingStart = p.tpProfilingStart;
+  snapshot.tpProfilingFinish = p.tpProfilingFinish;
+  snapshot.tpProfilingHold = p.tpProfilingHold;
+  snapshot.tpProfilingHoldLimit = p.tpProfilingHoldLimit;
+  snapshot.tpProfilingSlope = p.tpProfilingSlope;
+  snapshot.tpProfilingSlopeShape = p.tpProfilingSlopeShape;
+  snapshot.tpProfilingFlowRestriction = p.tpProfilingFlowRestriction;
+  // Profiling - transition (flow)
+  snapshot.tfProfileStart = p.tfProfileStart;
+  snapshot.tfProfileEnd = p.tfProfileEnd;
+  snapshot.tfProfileHold = p.tfProfileHold;
+  snapshot.tfProfileHoldLimit = p.tfProfileHoldLimit;
+  snapshot.tfProfileSlope = p.tfProfileSlope;
+  snapshot.tfProfileSlopeShape = p.tfProfileSlopeShape;
+  snapshot.tfProfilingPressureRestriction = p.tfProfilingPressureRestriction;
+  // Profiling - main
+  snapshot.profilingState = p.profilingState;
+  snapshot.mfProfileState = p.mfProfileState;
+  snapshot.mpProfilingStart = p.mpProfilingStart;
+  snapshot.mpProfilingFinish = p.mpProfilingFinish;
+  snapshot.mpProfilingSlope = p.mpProfilingSlope;
+  snapshot.mpProfilingSlopeShape = p.mpProfilingSlopeShape;
+  snapshot.mpProfilingFlowRestriction = p.mpProfilingFlowRestriction;
+  snapshot.mfProfileStart = p.mfProfileStart;
+  snapshot.mfProfileEnd = p.mfProfileEnd;
+  snapshot.mfProfileSlope = p.mfProfileSlope;
+  snapshot.mfProfileSlopeShape = p.mfProfileSlopeShape;
+  snapshot.mfProfilingPressureRestriction = p.mfProfilingPressureRestriction;
+  // Other
   snapshot.setpoint = p.setpoint;
-  snapshot.shotDose = p.shotDose;
-  // Match the brew-loop logic in gaggiuino.ino:610: use shotStopOnCustomWeight
-  // when it's set (>= 1g), otherwise fall back to dose × preset multiplier.
-  // The UI sees one resolved target instead of two fields it has to combine.
-  snapshot.targetWeight = (p.shotStopOnCustomWeight < 1.f)
-    ? p.shotDose * (float)p.shotPreset
-    : p.shotStopOnCustomWeight;
   snapshot.stopOnWeightState = p.stopOnWeightState;
+  snapshot.shotDose = p.shotDose;
+  snapshot.shotStopOnCustomWeight = p.shotStopOnCustomWeight;
+  snapshot.shotPreset = p.shotPreset;
   McuCommsSingleton::getInstance().sendProfileDataSnapshot(snapshot);
 }
 

@@ -114,6 +114,12 @@ void stmCommsSendRequestProfileData(uint8_t index) {
   xSemaphoreGiveRecursive(mcucLock);
 }
 
+void stmCommsSendProfileDataSet(const ProfileDataSnapshot& snapshot) {
+  if (xSemaphoreTakeRecursive(mcucLock, portMAX_DELAY) == pdFALSE) return;
+  mcuComms.sendProfileDataSet(snapshot);
+  xSemaphoreGiveRecursive(mcucLock);
+}
+
 bool stmCommsHasProfileNames() {
   return hasProfileNames;
 }
@@ -140,6 +146,11 @@ const ProfileDataSnapshot& stmCommsGetCachedProfileData(uint8_t index) {
   // clamps to a safe slot if they don't.
   uint8_t slot = (index >= 1 && index <= PROFILE_NAMES_COUNT) ? index - 1 : 0;
   return lastProfileData[slot];
+}
+
+void stmCommsInvalidateProfileDataCache(uint8_t index) {
+  if (index < 1 || index > PROFILE_NAMES_COUNT) return;
+  hasProfileData[index - 1] = false;
 }
 
 // Cache the snapshot before forwarding to the externally-defined handler so the
