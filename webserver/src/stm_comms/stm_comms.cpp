@@ -21,8 +21,14 @@ void onScalesSnapshotInternal(ScalesSnapshot& snapshot);
 void onProfileDataSnapshotInternal(ProfileDataSnapshot& snapshot);
 
 void stmCommsInit(HardwareSerial& serial) {
-  serial.setRxBufferSize(256);
-  serial.setTxBufferSize(256);
+  // RX buffer needs to hold a worst-case multi-packet message between read
+  // task ticks. ProfileDataSnapshot is ~250 bytes which serialises to ~5
+  // SerialTransfer packets × ~62 wire bytes = ~310 bytes — already past the
+  // old 256-byte limit, so per-profile-data responses were silently dropping
+  // bytes before receiveMultiPacket() could drain them. 1024 covers the
+  // current worst case plus headroom for back-to-back multi-packet pushes.
+  serial.setRxBufferSize(1024);
+  serial.setTxBufferSize(512);
   serial.begin(460800);
 
   // mcuComms.setDebugPort(&Serial);
@@ -73,7 +79,11 @@ void stmCommsTask(void* params) {
       }
       precacheStep++;
     }
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    // 10 ms tick instead of 50 ms — keeps the UART RX buffer drained quickly
+    // enough that a multi-packet response (~6.7 ms on the wire at 460800
+    // baud) doesn't sit accumulating bytes in the buffer for tens of ms
+    // before receiveMultiPacket() gets a chance to consume it.
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
