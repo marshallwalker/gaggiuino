@@ -86,12 +86,15 @@ void handleGetProfileByIndex(AsyncWebServerRequest* request, uint8_t index) {
     return;
   }
 
-  // Cache miss: ask the STM and wait briefly. Same bounded-poll pattern as
-  // /api/profiles uses for names.
+  // Cache miss: ask the STM and wait. ProfileDataSnapshot is multi-packet
+  // (~250 bytes) so the round trip is comfortably longer than the names
+  // payload, and the ESP read task only ticks every 50 ms — 800 ms gives
+  // plenty of headroom. In practice the cache is warmed at link-up
+  // (see stmCommsTask) so this is only hit on cold boot or reconnect.
   if (!stmCommsHasProfileData(index)) {
     LOG_INFO("Profile-data cache miss for %u; requesting from STM", index);
     stmCommsSendRequestProfileData(index);
-    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(300);
+    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(800);
     while (!stmCommsHasProfileData(index) && xTaskGetTickCount() < deadline) {
       vTaskDelay(pdMS_TO_TICKS(10));
     }

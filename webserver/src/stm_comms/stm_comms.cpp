@@ -45,16 +45,33 @@ void stmCommsTask(void* params) {
   // the log stream. "Connected" means we've seen a byte from the STM in the
   // last ~6 seconds (3× heartbeat interval).
   bool prevConnected = false;
+  // Precache walker: on link-up we want the ESP cache pre-populated with the
+  // names list and all 5 ProfileDataSnapshots so the first /api/profiles/N
+  // GET is a cache hit instead of a multi-packet round trip. We send one
+  // request per task tick (50 ms) rather than blasting all 6 at once so the
+  // STM's response stream doesn't pile up multi-packet payloads on the link.
+  // Step 0 = names, steps 1..5 = profile data per index, 6 = idle.
+  uint8_t precacheStep = 6;
   for (;;) {
     stmCommsReadData();
     bool nowConnected = mcuComms.isConnected();
     if (nowConnected != prevConnected) {
       if (nowConnected) {
-        LOG_INFO("STM link up");
+        LOG_INFO("STM link up; precaching profile names + 5 snapshots");
+        precacheStep = 0;
       } else {
         LOG_ERROR("STM link down (no bytes for >6s)");
+        precacheStep = 6;  // abandon any in-flight precache walk
       }
       prevConnected = nowConnected;
+    }
+    if (nowConnected && precacheStep < 6) {
+      if (precacheStep == 0) {
+        stmCommsSendRequestProfileNames();
+      } else {
+        stmCommsSendRequestProfileData(precacheStep);  // 1-indexed
+      }
+      precacheStep++;
     }
     vTaskDelay(50 / portTICK_PERIOD_MS);
   }
