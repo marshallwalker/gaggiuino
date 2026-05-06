@@ -24,7 +24,11 @@ const ProfileDataSnapshot& stmCommsGetCachedProfileData(uint8_t index);
 // Clears the cache flag for one slot so the next stmCommsHasProfileData()
 // returns false until the STM pushes a fresh snapshot. Used by the PUT
 // handler to wait for write-confirmation without a separate response message.
+// Also re-arms the walker so it issues a fresh request next tick.
 void stmCommsInvalidateProfileDataCache(uint8_t index);
+// Same idea for the names list — used by the GET handler on a cold-boot
+// cache miss so the walker re-fetches without piling on a duplicate request.
+void stmCommsInvalidateProfileNamesCache();
 
 // To be defined elsewhere
 void onSensorStateSnapshotReceived(SensorStateSnapshot& snapshot);

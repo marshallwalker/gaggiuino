@@ -49,6 +49,25 @@ bool homeScreenScalesEnabled     = false;
 float previousSmoothedPressure  = 0.f;
 float previousSmoothedPumpFlow  = 0.f;
 
+// FNV-1a 32-bit hash. Used to summarise runningCfg.profiles[] in a single
+// uint32_t that piggybacks on every SensorStateSnapshot — the ESP compares
+// against its cached value to decide whether its per-slot ProfileDataSnapshot
+// cache is stale. Cheap (~1KB hashed in <10us on STM32F411) so we just
+// recompute on every sensor send instead of tracking dirty bits across the
+// dozen-ish eepromWrite call sites.
+static uint32_t profilesChecksum(const eepromValues_t& cfg) {
+  uint32_t h = 2166136261u;  // FNV offset basis
+  const uint8_t* p = reinterpret_cast<const uint8_t*>(cfg.profiles);
+  for (size_t i = 0; i < sizeof(cfg.profiles); i++) {
+    h ^= p[i];
+    h *= 16777619u;          // FNV prime
+  }
+  // Avoid the sentinel 0 in the rare case the hash collides with it — the
+  // ESP treats 0 as "STM hasn't computed yet" and would never match a real
+  // value of 0.
+  return h == 0 ? 1u : h;
+}
+
 void setup(void) {
   LOG_INIT();
   LOG_INFO("Gaggiuino (fw: %s) booting", AUTO_VERSION);
@@ -155,7 +174,7 @@ void loop(void) {
   currentState.activeProfile = runningCfg.activeProfile + 1; // 1-indexed for UI
   currentState.tofRangeFull = runningCfg.tofRangeFull;
   currentState.tofRangeEmpty = runningCfg.tofRangeEmpty;
-  espCommsSendSensorData(currentState);
+  espCommsSendSensorData(currentState, profilesChecksum(runningCfg));
 
   // Throttled scales snapshot for the web calibration UI. Only built when
   // hardware scales are present; otherwise the UI shows "no scales detected".

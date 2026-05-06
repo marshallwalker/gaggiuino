@@ -45,12 +45,12 @@ void handleGetProfiles(AsyncWebServerRequest* request) {
 
   LOG_INFO("Got request to list profiles");
 
-  // Cache miss: ask the STM and wait briefly for the snapshot. Bounded wait
-  // (~300 ms) so the AsyncTCP task isn't held up if the STM isn't responding.
+  // Cache miss: nudge the walker and wait. Same checksum-driven sync as
+  // for per-profile data — in steady state this never fires.
   if (!stmCommsHasProfileNames()) {
-    LOG_INFO("Profile names cache miss; requesting from STM");
-    stmCommsSendRequestProfileNames();
-    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(300);
+    LOG_INFO("Profile names cache miss; nudging walker");
+    stmCommsInvalidateProfileNamesCache();
+    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(800);
     while (!stmCommsHasProfileNames() && xTaskGetTickCount() < deadline) {
       vTaskDelay(pdMS_TO_TICKS(10));
     }
@@ -86,14 +86,14 @@ void handleGetProfileByIndex(AsyncWebServerRequest* request, uint8_t index) {
     return;
   }
 
-  // Cache miss: ask the STM and wait. ProfileDataSnapshot is multi-packet
-  // (~250 bytes) so the round trip is comfortably longer than the names
-  // payload, and the ESP read task only ticks every 50 ms — 800 ms gives
-  // plenty of headroom. In practice the cache is warmed at link-up
-  // (see stmCommsTask) so this is only hit on cold boot or reconnect.
+  // Cache miss: nudge the walker (the single source of profile-data
+  // requests) and wait. In steady state the cache is kept fresh by the
+  // checksum-driven sync in stmCommsTask, so this path only runs on cold
+  // boot before the first sensor frame lands or if a previous walker
+  // attempt's multi-packet response was dropped on the wire.
   if (!stmCommsHasProfileData(index)) {
-    LOG_INFO("Profile-data cache miss for %u; requesting from STM", index);
-    stmCommsSendRequestProfileData(index);
+    LOG_INFO("Profile-data cache miss for %u; nudging walker", index);
+    stmCommsInvalidateProfileDataCache(index);
     const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(800);
     while (!stmCommsHasProfileData(index) && xTaskGetTickCount() < deadline) {
       vTaskDelay(pdMS_TO_TICKS(10));

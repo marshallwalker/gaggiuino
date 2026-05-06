@@ -59,6 +59,12 @@ struct SensorStateSnapshot {
   uint16_t tofRangeFull;          // Persisted "tank full" reference in mm
   uint16_t tofRangeEmpty;         // Persisted "tank empty" reference in mm
   uint8_t activeProfile;          // 1-indexed for UI consistency
+  // FNV-1a hash over runningCfg.profiles[]. ESP compares against its cached
+  // value each frame; mismatch invalidates the per-slot ProfileDataSnapshot
+  // cache and kicks off a re-sync. Collisions are astronomically unlikely
+  // for the kind of in-place edits the firmware makes (single-field flips,
+  // numeric tweaks). Sentinel 0 = "not yet computed by STM".
+  uint32_t profilesChecksum;
 };
 
 #define PROFILE_NAMES_COUNT 5

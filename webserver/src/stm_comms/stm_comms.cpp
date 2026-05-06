@@ -13,9 +13,23 @@ namespace {
   // (transitively via mcu_comms.h) — same 5-slot ceiling the firmware uses.
   ProfileDataSnapshot lastProfileData[PROFILE_NAMES_COUNT] = {};
   bool hasProfileData[PROFILE_NAMES_COUNT] = {};
+  // Checksum-driven sync state. The STM hashes runningCfg.profiles[] into
+  // every SensorStateSnapshot (~1Hz). If the value here doesn't match the
+  // last frame's, the cache is stale and the walker re-fetches all 5
+  // ProfileDataSnapshots in the background. Sentinel 0 = "nothing seen yet"
+  // — the first sensor frame from the STM will always look like a mismatch
+  // and trigger an initial sync.
+  uint32_t lastProfilesChecksum = 0;
+  // staleProfileData[i] = true means slot (i+1)'s cache is invalid and the
+  // walker should re-request it. Set on link-down and on checksum mismatch.
+  bool staleProfileData[PROFILE_NAMES_COUNT] = { true, true, true, true, true };
+  // Names list is also re-fetched on resync (cheap, single multi-packet) so
+  // any rename done out-of-band (Nextion, factory reset) propagates.
+  bool staleProfileNames = true;
 }
 
 void stmCommsTask(void* params);
+void onSensorStateSnapshotInternal(SensorStateSnapshot& snapshot);
 void onProfileNamesSnapshotInternal(ProfileNamesSnapshot& snapshot);
 void onScalesSnapshotInternal(ScalesSnapshot& snapshot);
 void onProfileDataSnapshotInternal(ProfileDataSnapshot& snapshot);
@@ -36,7 +50,9 @@ void stmCommsInit(HardwareSerial& serial) {
 
   // Set callbacks
   mcuComms.setShotSnapshotCallback(onShotSnapshotReceived);
-  mcuComms.setSensorStateSnapshotCallback(onSensorStateSnapshotReceived);
+  // Sensor snapshots route through an internal trampoline that watches the
+  // profilesChecksum field, then forwards to the externally-defined handler.
+  mcuComms.setSensorStateSnapshotCallback(onSensorStateSnapshotInternal);
   mcuComms.setRemoteScalesTareCommandCallback(onScalesTareReceived);
   mcuComms.setProfileNamesSnapshotCallback(onProfileNamesSnapshotInternal);
   mcuComms.setLogRecordReceivedCallback(onLogRecordReceived);
@@ -51,38 +67,49 @@ void stmCommsTask(void* params) {
   // the log stream. "Connected" means we've seen a byte from the STM in the
   // last ~6 seconds (3× heartbeat interval).
   bool prevConnected = false;
-  // Precache walker: on link-up we want the ESP cache pre-populated with the
-  // names list and all 5 ProfileDataSnapshots so the first /api/profiles/N
-  // GET is a cache hit instead of a multi-packet round trip. We send one
-  // request per task tick (50 ms) rather than blasting all 6 at once so the
-  // STM's response stream doesn't pile up multi-packet payloads on the link.
-  // Step 0 = names, steps 1..5 = profile data per index, 6 = idle.
-  uint8_t precacheStep = 6;
+  // Cache walker. Each tick: if the names list is stale, request it; else
+  // walk slots 1..5 looking for the first stale ProfileDataSnapshot and
+  // request it. When all caches are fresh, idles. Triggered by:
+  //   - link-down → mark everything stale
+  //   - sensor frame with mismatched profilesChecksum → mark everything stale
+  //   - boot (initial state is all stale)
+  // One request per task tick spreads multi-packet responses out so the
+  // STM's response stream doesn't pile up on the wire.
   for (;;) {
     stmCommsReadData();
     bool nowConnected = mcuComms.isConnected();
     if (nowConnected != prevConnected) {
       if (nowConnected) {
-        LOG_INFO("STM link up; precaching profile names + 5 snapshots");
-        precacheStep = 0;
+        LOG_INFO("STM link up");
       } else {
         LOG_ERROR("STM link down (no bytes for >6s)");
-        precacheStep = 6;  // abandon any in-flight precache walk
+        // Reset the checksum so the next time the link comes up we re-sync
+        // everything from scratch, even if the STM happened to compute the
+        // same checksum it had before going dark.
+        lastProfilesChecksum = 0;
+        staleProfileNames = true;
+        for (uint8_t i = 0; i < PROFILE_NAMES_COUNT; i++) staleProfileData[i] = true;
       }
       prevConnected = nowConnected;
     }
-    if (nowConnected && precacheStep < 6) {
-      if (precacheStep == 0) {
+    if (nowConnected) {
+      if (staleProfileNames) {
         stmCommsSendRequestProfileNames();
+        staleProfileNames = false;  // optimistic; reset on link-down/checksum change
       } else {
-        stmCommsSendRequestProfileData(precacheStep);  // 1-indexed
+        for (uint8_t i = 0; i < PROFILE_NAMES_COUNT; i++) {
+          if (staleProfileData[i]) {
+            stmCommsSendRequestProfileData(i + 1);
+            staleProfileData[i] = false;  // optimistic
+            break;  // one request per tick
+          }
+        }
       }
-      precacheStep++;
     }
-    // 10 ms tick instead of 50 ms — keeps the UART RX buffer drained quickly
-    // enough that a multi-packet response (~6.7 ms on the wire at 460800
-    // baud) doesn't sit accumulating bytes in the buffer for tens of ms
-    // before receiveMultiPacket() gets a chance to consume it.
+    // 10 ms tick — fast enough that multi-packet responses (~6.7 ms on the
+    // wire at 460800 baud) don't sit accumulating bytes in the UART buffer
+    // for tens of ms before receiveMultiPacket() gets a chance to consume
+    // them. Walking 5 slots = ~50 ms of wall-clock for a full re-sync.
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
@@ -178,6 +205,33 @@ const ProfileDataSnapshot& stmCommsGetCachedProfileData(uint8_t index) {
 void stmCommsInvalidateProfileDataCache(uint8_t index) {
   if (index < 1 || index > PROFILE_NAMES_COUNT) return;
   hasProfileData[index - 1] = false;
+  // Re-arm the walker so it issues a fresh request next tick. Used by the
+  // PUT handler (after a write, to detect the STM's confirmation re-push)
+  // and by GET-on-cache-miss (to recover from a dropped multi-packet
+  // response without waiting for the next external checksum change).
+  staleProfileData[index - 1] = true;
+}
+
+void stmCommsInvalidateProfileNamesCache() {
+  hasProfileNames = false;
+  staleProfileNames = true;
+}
+
+// Watch the profilesChecksum field on every sensor frame. If it changed,
+// the STM's profile state diverged from what we have cached (web edit
+// echo, Nextion edit, factory reset, brand-new boot) — invalidate the
+// per-slot cache and queue a full re-sync via the walker. The forwarded
+// callback drives the WS sensor stream as before.
+void onSensorStateSnapshotInternal(SensorStateSnapshot& snapshot) {
+  if (snapshot.profilesChecksum != 0 &&
+      snapshot.profilesChecksum != lastProfilesChecksum) {
+    LOG_INFO("Profiles checksum changed (0x%08x -> 0x%08x); resyncing cache",
+      lastProfilesChecksum, snapshot.profilesChecksum);
+    lastProfilesChecksum = snapshot.profilesChecksum;
+    staleProfileNames = true;
+    for (uint8_t i = 0; i < PROFILE_NAMES_COUNT; i++) staleProfileData[i] = true;
+  }
+  onSensorStateSnapshotReceived(snapshot);
 }
 
 // Cache the snapshot before forwarding to the externally-defined handler so the

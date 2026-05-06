@@ -44,7 +44,7 @@ bool espCommsIsConnected() {
 }
 
 volatile uint32_t sensorDataTimer = 0;
-void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
+void espCommsSendSensorData(const SensorState& state, uint32_t profilesChecksum, uint32_t frequency) {
   uint32_t now = millis();
   if (now - sensorDataTimer > frequency) {
     SensorStateSnapshot sensorSnapshot = SensorStateSnapshot{
@@ -63,7 +63,8 @@ void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
       .tofRangeRaw = state.tofRangeRaw,
       .tofRangeFull = state.tofRangeFull,
       .tofRangeEmpty = state.tofRangeEmpty,
-      .activeProfile = state.activeProfile
+      .activeProfile = state.activeProfile,
+      .profilesChecksum = profilesChecksum,
     };
     McuCommsSingleton::getInstance().sendSensorStateSnapshot(sensorSnapshot);
     sensorDataTimer = now;

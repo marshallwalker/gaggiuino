@@ -10,7 +10,7 @@ bool espCommsIsConnected();
 
 void espCommsReadData();
 
-void espCommsSendSensorData(const SensorState& state, uint32_t frequency = 1000);
+void espCommsSendSensorData(const SensorState& state, uint32_t profilesChecksum, uint32_t frequency = 1000);
 void espCommsSendShotData(ShotSnapshot& shotData, uint32_t frequency = 100);
 void espCommsSendTareScalesCommand();
 void espCommsSendProfileNames(const eepromValues_t& cfg);
